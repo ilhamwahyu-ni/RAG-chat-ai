@@ -3,14 +3,20 @@
 namespace App\Jobs;
 
 use App\Agents\AnalysisAgent;
+use App\Enums\ResearchCategory;
+use App\Events\ResearchItemAnalyzed;
 use App\Models\ResearchItem;
+use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Ai\Files;
+use Laravel\Ai\Files\Document;
 use Laravel\Ai\Files\LocalImage;
 use Laravel\Ai\Stores;
+
+use function Laravel\Ai\agent;
 
 class AnalyzeResearchItem implements ShouldQueue
 {
@@ -35,6 +41,9 @@ class AnalyzeResearchItem implements ShouldQueue
             'document' => $this->analyzeDocument(),
             'url' => $this->analyzeUrl(),
         };
+
+        $this->item->refresh();
+        ResearchItemAnalyzed::dispatch($this->item);
     }
 
     protected function ensureUserHasVectorStore($user): void
@@ -67,10 +76,12 @@ class AnalyzeResearchItem implements ShouldQueue
         );
 
         $summary = $response->text;
+        $category = $this->categorize($summary);
 
         $this->item->update([
             'ai_summary' => $summary,
             'title' => $this->generateTitle($summary),
+            'metadata' => array_merge($this->item->metadata ?? [], ['category' => $category]),
         ]);
 
         $this->addToVectorStore($summary);
@@ -85,9 +96,22 @@ class AnalyzeResearchItem implements ShouldQueue
         $store = Stores::get($this->item->user->vector_store_id, provider: 'openai');
         $store->add($file);
 
+        $agent = AnalysisAgent::forDocument();
+        $response = $agent->prompt(
+            'Analyze and summarize this document.',
+            attachments: [
+                Document::fromPath($path),
+            ]
+        );
+
+        $summary = $response->text;
+        $category = $this->categorize($summary);
+
         $this->item->update([
             'provider_file_id' => $file->id,
-            'ai_summary' => 'Document uploaded to knowledge base. Contents are searchable.',
+            'ai_summary' => $summary,
+            'title' => $this->generateTitle($summary),
+            'metadata' => array_merge($this->item->metadata ?? [], ['category' => $category]),
         ]);
     }
 
@@ -109,13 +133,28 @@ class AnalyzeResearchItem implements ShouldQueue
         );
 
         $summary = $response->text;
+        $category = $this->categorize($summary);
 
         $this->item->update([
             'ai_summary' => $summary,
             'title' => $this->generateTitle($summary),
+            'metadata' => array_merge($this->item->metadata ?? [], ['category' => $category]),
         ]);
 
         $this->addToVectorStore("URL: {$url}\n\n{$summary}\n\nOriginal content:\n{$content}");
+    }
+
+    protected function categorize(string $content): string
+    {
+        $response = agent(
+            instructions: 'You are a content categorizer. Categorize the following content into the single most appropriate category.',
+            schema: fn (JsonSchema $schema) => [
+                'category' => $schema->string()->enum(ResearchCategory::class)->required(),
+            ],
+        )->prompt($content);
+
+        return ResearchCategory::tryFrom($response['category'])?->value
+            ?? ResearchCategory::Other->value;
     }
 
     protected function addToVectorStore(string $content): void
@@ -145,13 +184,14 @@ class AnalyzeResearchItem implements ShouldQueue
 
     protected function generateTitle(string $summary): string
     {
-        $title = substr($summary, 0, 80);
+        $response = agent(
+            instructions: 'Generate a short, descriptive title (max 60 characters) for the following content. The title should capture the core subject clearly and concisely. Do not use quotes around the title.',
+            schema: fn (JsonSchema $schema) => [
+                'title' => $schema->string()->required(),
+            ],
+        )->prompt($summary);
 
-        if (strlen($summary) > 80) {
-            $title = substr($title, 0, strrpos($title, ' ')).'...';
-        }
-
-        return $title;
+        return substr($response['title'], 0, 100);
     }
 
     protected function extractTextFromHtml(string $html): string

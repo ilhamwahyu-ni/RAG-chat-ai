@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\ResearchCategory;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -22,7 +23,9 @@ class ResearchItemFactory extends Factory
             'type' => fake()->randomElement(['image', 'document', 'url']),
             'title' => fake()->sentence(4),
             'ai_summary' => fake()->paragraph(),
-            'metadata' => [],
+            'metadata' => [
+                'category' => fake()->randomElement(ResearchCategory::cases())->value,
+            ],
         ];
     }
 
@@ -31,6 +34,10 @@ class ResearchItemFactory extends Factory
         return $this->state(fn () => [
             'type' => 'image',
             'file_path' => 'research/'.fake()->uuid().'.jpg',
+            'metadata' => [
+                'category' => fake()->randomElement(ResearchCategory::cases())->value,
+                'mime_type' => 'image/jpeg',
+            ],
         ]);
     }
 
@@ -39,6 +46,10 @@ class ResearchItemFactory extends Factory
         return $this->state(fn () => [
             'type' => 'document',
             'file_path' => 'research/'.fake()->uuid().'.pdf',
+            'metadata' => [
+                'category' => fake()->randomElement(ResearchCategory::cases())->value,
+                'mime_type' => 'application/pdf',
+            ],
         ]);
     }
 
@@ -47,6 +58,9 @@ class ResearchItemFactory extends Factory
         return $this->state(fn () => [
             'type' => 'url',
             'original_url' => fake()->url(),
+            'metadata' => [
+                'category' => fake()->randomElement(ResearchCategory::cases())->value,
+            ],
         ]);
     }
 
@@ -55,6 +69,13 @@ class ResearchItemFactory extends Factory
         return $this->state(fn () => [
             'ai_summary' => null,
             'provider_file_id' => null,
+        ]);
+    }
+
+    public function withCategory(string $category): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'metadata' => array_merge($attributes['metadata'] ?? [], ['category' => $category]),
         ]);
     }
 }

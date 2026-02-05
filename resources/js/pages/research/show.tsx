@@ -1,4 +1,4 @@
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
     ArrowLeft,
     Download,
@@ -8,7 +8,10 @@ import {
     ImageIcon,
     Loader2,
     Save,
+    Tag,
+    Trash2,
 } from 'lucide-react';
+import { useState } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Badge } from '@/components/ui/badge';
@@ -29,6 +32,7 @@ interface ResearchItem {
         original_name?: string;
         mime_type?: string;
         size?: number;
+        category?: string;
     } | null;
     created_at: string;
     updated_at: string;
@@ -72,9 +76,18 @@ export default function ResearchShow() {
         { title: item.title, href: research.show(item.id).url },
     ];
 
+    const [isDeleting, setIsDeleting] = useState(false);
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         put(research.update(item.id).url);
+    };
+
+    const handleDelete = () => {
+        if (!confirm('Are you sure you want to delete this item? This cannot be undone.')) return;
+
+        setIsDeleting(true);
+        router.delete(research.destroy(item.id).url);
     };
 
     const formatFileSize = (bytes?: number) => {
@@ -118,6 +131,12 @@ export default function ResearchShow() {
                                         <Icon className="mr-1 size-3" />
                                         {config.label}
                                     </Badge>
+                                    {item.metadata?.category && (
+                                        <Badge variant="outline" className="gap-1">
+                                            <Tag className="size-3" />
+                                            {item.metadata.category}
+                                        </Badge>
+                                    )}
                                     <time className="text-sm text-muted-foreground">
                                         {new Date(
                                             item.created_at,
@@ -300,6 +319,28 @@ export default function ResearchShow() {
                                     </>
                                 )}
                             </Button>
+
+                            <div className="border-t border-border/50 pt-4">
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    disabled={isDeleting}
+                                    onClick={handleDelete}
+                                    className="w-full text-muted-foreground hover:text-destructive"
+                                >
+                                    {isDeleting ? (
+                                        <>
+                                            <Loader2 className="size-4 animate-spin" />
+                                            Deleting...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Trash2 className="size-4" />
+                                            Delete Item
+                                        </>
+                                    )}
+                                </Button>
+                            </div>
                         </form>
                     </div>
                 </div>

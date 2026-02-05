@@ -447,6 +447,7 @@ export default function ResearchChat() {
     );
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const formRef = useRef<HTMLFormElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     const [input, setInput] = useState('');
     const { suggestions, isVisible: suggestionsVisible } =
@@ -523,6 +524,11 @@ export default function ResearchChat() {
             },
         },
     );
+
+    // Auto-focus the textarea on mount
+    useEffect(() => {
+        textareaRef.current?.focus();
+    }, []);
 
     // Sync conversations from props
     useEffect(() => {
@@ -638,7 +644,7 @@ export default function ResearchChat() {
                 />
             )}
 
-            <div className="flex min-h-[calc(100vh-64px)]">
+            <div className="flex h-[calc(100vh-57px)] overflow-hidden">
                 {/* Sidebar */}
                 <div className="hidden w-72 shrink-0 flex-col border-r border-border/50 bg-muted/20 md:flex">
                     <div className="border-b border-border/50 p-4">
@@ -732,9 +738,9 @@ export default function ResearchChat() {
                 </div>
 
                 {/* Main Chat Area */}
-                <div className="flex flex-1 flex-col">
+                <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
                     {/* Feature Badges Header */}
-                    <div className="border-b border-border/50 bg-muted/10 px-4 py-3">
+                    <div className="shrink-0 border-b border-border/50 bg-muted/10 px-4 py-3">
                         <FeatureBadgeGroup
                             features={[
                                 'agent',
@@ -862,7 +868,7 @@ export default function ResearchChat() {
                     </div>
 
                     {/* Input */}
-                    <div className="border-t border-border/50 bg-background/80 p-4 backdrop-blur-sm">
+                    <div className="shrink-0 border-t border-border/50 bg-background/80 p-4 backdrop-blur-sm">
                         <form
                             ref={formRef}
                             onSubmit={handleSubmit}
@@ -870,6 +876,7 @@ export default function ResearchChat() {
                         >
                             <div className="relative flex items-end gap-3 rounded-2xl border border-border/50 bg-muted/30 p-2 transition-colors focus-within:border-border focus-within:bg-muted/50">
                                 <textarea
+                                    ref={textareaRef}
                                     value={input}
                                     onChange={(e) => setInput(e.target.value)}
                                     onKeyDown={handleKeyDown}

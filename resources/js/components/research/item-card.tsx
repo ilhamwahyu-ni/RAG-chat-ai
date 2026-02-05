@@ -1,5 +1,5 @@
 import { Link, router } from '@inertiajs/react';
-import { FileText, Globe, ImageIcon, Loader2, Trash2 } from 'lucide-react';
+import { FileText, Globe, ImageIcon, Loader2, Tag, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import research from '@/routes/research';
@@ -10,6 +10,7 @@ interface ResearchItem {
     title: string;
     original_url: string | null;
     ai_summary: string | null;
+    metadata?: { category?: string } | null;
     created_at: string;
 }
 
@@ -45,6 +46,7 @@ export function ItemCard({ item }: ItemCardProps) {
     };
 
     const isProcessing = !item.ai_summary;
+    const category = item.metadata?.category;
 
     return (
         <Link
@@ -84,13 +86,21 @@ export function ItemCard({ item }: ItemCardProps) {
 
                 {/* Footer */}
                 <div className="mt-4 flex items-center justify-between border-t border-border/50 pt-4">
-                    <time className="text-xs text-muted-foreground">
-                        {new Date(item.created_at).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                        })}
-                    </time>
+                    <div className="flex items-center gap-2">
+                        <time className="text-xs text-muted-foreground">
+                            {new Date(item.created_at).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                            })}
+                        </time>
+                        {category && (
+                            <span className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                                <Tag className="size-2.5" />
+                                {category}
+                            </span>
+                        )}
+                    </div>
 
                     <Button
                         variant="ghost"

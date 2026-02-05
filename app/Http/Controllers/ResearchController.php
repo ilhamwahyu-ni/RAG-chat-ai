@@ -9,6 +9,7 @@ use App\Jobs\AnalyzeResearchItem;
 use App\Models\ResearchItem;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -18,13 +19,34 @@ class ResearchController extends Controller
 {
     public function index(Request $request): Response
     {
-        $items = $request->user()
+        $search = $request->query('search', '');
+        $category = $request->query('category', '');
+
+        $query = $request->user()
             ->researchItems()
-            ->latest()
-            ->paginate(12);
+            ->search($search)
+            ->category($category)
+            ->latest();
 
         return Inertia::render('research/index', [
-            'items' => $items,
+            'items' => Inertia::scroll(fn () => $query->paginate(12)->withQueryString()),
+            'filters' => [
+                'search' => $search,
+                'category' => $category,
+            ],
+            'stats' => fn () => [
+                'total' => $request->user()->researchItems()->count(),
+                'images' => $request->user()->researchItems()->where('type', 'image')->count(),
+                'documents' => $request->user()->researchItems()->where('type', 'document')->count(),
+                'urls' => $request->user()->researchItems()->where('type', 'url')->count(),
+            ],
+            'categories' => Inertia::lazy(fn () => $request->user()
+                ->researchItems()
+                ->select(DB::raw("json_extract(metadata, '$.category') as category"), DB::raw('count(*) as count'))
+                ->whereNotNull(DB::raw("json_extract(metadata, '$.category')"))
+                ->groupBy('category')
+                ->pluck('count', 'category')
+                ->toArray()),
         ]);
     }
 
@@ -73,10 +95,11 @@ class ResearchController extends Controller
     public function bulkStore(BulkStoreResearchItemRequest $request): RedirectResponse
     {
         $user = $request->user();
-        $notes = $request->validated('notes');
+        $fileNotes = $request->validated('file_notes', []);
+        $urlNotes = $request->validated('url_notes', []);
         $count = 0;
 
-        foreach ($request->file('files', []) as $file) {
+        foreach ($request->file('files', []) as $index => $file) {
             $type = str_starts_with($file->getMimeType(), 'image/') ? 'image' : 'document';
             $path = $file->store('research/'.$user->id, 'local');
 
@@ -84,7 +107,7 @@ class ResearchController extends Controller
                 'user_id' => $user->id,
                 'type' => $type,
                 'title' => pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME),
-                'user_notes' => $notes,
+                'user_notes' => $fileNotes[$index] ?? null,
                 'file_path' => $path,
                 'metadata' => [
                     'original_name' => $file->getClientOriginalName(),
@@ -97,7 +120,7 @@ class ResearchController extends Controller
             $count++;
         }
 
-        foreach ($request->parsedUrls() as $url) {
+        foreach ($request->validated('urls', []) as $index => $url) {
             $parsed = parse_url($url);
 
             $item = ResearchItem::create([
@@ -105,7 +128,7 @@ class ResearchController extends Controller
                 'type' => 'url',
                 'title' => $parsed['host'] ?? 'Web Page',
                 'original_url' => $url,
-                'user_notes' => $notes,
+                'user_notes' => $urlNotes[$index] ?? null,
             ]);
 
             AnalyzeResearchItem::dispatch($item);

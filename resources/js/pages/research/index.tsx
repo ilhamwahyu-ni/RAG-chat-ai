@@ -1,14 +1,21 @@
-import { Head, usePage } from '@inertiajs/react';
-import { FileText, Globe, ImageIcon, Search } from 'lucide-react';
+import { Head, InfiniteScroll, router, usePage } from '@inertiajs/react';
+import { useEcho } from '@laravel/echo-react';
+import { ChevronDown, FileText, Globe, ImageIcon, Search, Tag } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import {
     FeatureBadge,
     FeatureBadgeGroup,
 } from '@/components/demo/feature-badge';
 import { CaptureForm } from '@/components/research/capture-form';
 import { ItemCard } from '@/components/research/item-card';
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import AppLayout from '@/layouts/app-layout';
 import research from '@/routes/research';
-import type { BreadcrumbItem } from '@/types';
+import type { BreadcrumbItem, SharedData } from '@/types';
 
 interface ResearchItem {
     id: string;
@@ -16,6 +23,7 @@ interface ResearchItem {
     title: string;
     original_url: string | null;
     ai_summary: string | null;
+    metadata?: { category?: string } | null;
     created_at: string;
 }
 
@@ -27,8 +35,18 @@ interface PaginatedData<T> {
     total: number;
 }
 
+interface Stats {
+    total: number;
+    images: number;
+    documents: number;
+    urls: number;
+}
+
 interface PageProps {
     items: PaginatedData<ResearchItem>;
+    filters: { search: string; category: string };
+    stats: Stats;
+    categories?: Record<string, number>;
     flash?: { success?: string };
 }
 
@@ -40,14 +58,65 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function ResearchIndex() {
-    const { items, flash } = usePage<PageProps>().props;
+    const { items, filters, stats, categories, flash } = usePage<PageProps>().props;
+    const { auth } = usePage<SharedData>().props;
+    const [search, setSearch] = useState(filters.search);
+    const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
 
-    const stats = {
-        total: items.total,
-        images: items.data.filter((i) => i.type === 'image').length,
-        documents: items.data.filter((i) => i.type === 'document').length,
-        urls: items.data.filter((i) => i.type === 'url').length,
+    // Debounced search
+    useEffect(() => {
+        if (search === filters.search) {
+            return;
+        }
+
+        if (debounceRef.current) {
+            clearTimeout(debounceRef.current);
+        }
+
+        debounceRef.current = setTimeout(() => {
+            router.get(
+                research.index().url,
+                { search: search || undefined, category: filters.category || undefined },
+                { preserveState: true, replace: true, only: ['items', 'categories'], reset: ['items'] },
+            );
+        }, 300);
+
+        return () => {
+            if (debounceRef.current) {
+                clearTimeout(debounceRef.current);
+            }
+        };
+    }, [search, filters.search, filters.category]);
+
+    // Real-time updates via Reverb (debounced for bulk uploads)
+    const reloadRef = useRef<ReturnType<typeof setTimeout>>(null);
+
+    useEcho(`App.Models.User.${auth.user.id}`, 'ResearchItemAnalyzed', () => {
+        if (reloadRef.current) {
+            clearTimeout(reloadRef.current);
+        }
+        reloadRef.current = setTimeout(() => {
+            router.reload({ only: ['items', 'stats', 'categories'], reset: ['items'] });
+        }, 500);
+    });
+
+    const handleCategoryFilter = (category: string) => {
+        router.get(
+            research.index().url,
+            {
+                search: filters.search || undefined,
+                category: category || undefined,
+            },
+            { preserveState: true, replace: true, only: ['items', 'categories'], reset: ['items'] },
+        );
     };
+
+    const statItems = [
+        { label: 'Total Items', value: stats.total, icon: Search },
+        { label: 'Images', value: stats.images, icon: ImageIcon },
+        { label: 'Documents', value: stats.documents, icon: FileText },
+        { label: 'URLs', value: stats.urls, icon: Globe },
+    ];
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -81,68 +150,110 @@ export default function ResearchIndex() {
                             {/* Feature Badges */}
                             <div className="mt-4">
                                 <FeatureBadgeGroup
-                                    features={['vector-store', 'vision']}
+                                    features={['vector-store', 'vision', 'broadcasting', 'categorization']}
                                 />
                             </div>
                         </div>
 
-                        {/* Stats */}
-                        <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
-                            {[
-                                {
-                                    label: 'Total Items',
-                                    value: stats.total,
-                                    icon: Search,
-                                },
-                                {
-                                    label: 'Images',
-                                    value: stats.images,
-                                    icon: ImageIcon,
-                                },
-                                {
-                                    label: 'Documents',
-                                    value: stats.documents,
-                                    icon: FileText,
-                                },
-                                {
-                                    label: 'URLs',
-                                    value: stats.urls,
-                                    icon: Globe,
-                                },
-                            ].map(({ label, value, icon: Icon }) => (
-                                <div
-                                    key={label}
-                                    className="rounded-xl border border-border/50 bg-card/50 p-4"
-                                >
-                                    <div className="flex items-center gap-2 text-muted-foreground">
-                                        <Icon className="size-4" />
-                                        <span className="text-sm">{label}</span>
-                                    </div>
-                                    <p className="mt-1 text-2xl font-semibold text-foreground">
-                                        {value}
-                                    </p>
+                        {/* Stats (collapsible) */}
+                        <Collapsible className="mb-6">
+                            <CollapsibleTrigger className="group flex w-full items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+                                <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180" />
+                                <span>Library stats</span>
+                                <span className="text-xs text-muted-foreground/60">
+                                    {stats.total} items
+                                </span>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                                <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                    {statItems.map(({ label, value, icon: Icon }) => (
+                                        <div
+                                            key={label}
+                                            className="rounded-xl border border-border/50 bg-card/50 p-4"
+                                        >
+                                            <div className="flex items-center gap-2 text-muted-foreground">
+                                                <Icon className="size-4" />
+                                                <span className="text-sm">{label}</span>
+                                            </div>
+                                            <p className="mt-1 text-2xl font-semibold text-foreground">
+                                                {value}
+                                            </p>
+                                        </div>
+                                    ))}
                                 </div>
-                            ))}
+                            </CollapsibleContent>
+                        </Collapsible>
+
+                        {/* Search */}
+                        <div className="relative mb-4">
+                            <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                            <input
+                                type="text"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                placeholder="Search by title, summary, notes, or category..."
+                                className="w-full rounded-lg border border-border/50 bg-card/50 py-2.5 pr-4 pl-10 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                            />
                         </div>
+
+                        {/* Category Filter Chips */}
+                        {categories && Object.keys(categories).length > 0 && (
+                            <div className="mb-6 flex flex-wrap items-center gap-2">
+                                <Tag className="size-3.5 text-muted-foreground" />
+                                <button
+                                    type="button"
+                                    onClick={() => handleCategoryFilter('')}
+                                    className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                                        !filters.category
+                                            ? 'bg-primary text-primary-foreground'
+                                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                                    }`}
+                                >
+                                    All
+                                </button>
+                                {Object.entries(categories)
+                                    .sort(([, a], [, b]) => b - a)
+                                    .map(([cat, count]) => (
+                                        <button
+                                            key={cat}
+                                            type="button"
+                                            onClick={() => handleCategoryFilter(cat)}
+                                            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                                                filters.category === cat
+                                                    ? 'bg-primary text-primary-foreground'
+                                                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                                            }`}
+                                        >
+                                            {cat}
+                                            <span className="ml-1 opacity-60">{count}</span>
+                                        </button>
+                                    ))}
+                            </div>
+                        )}
 
                         {/* Items Grid */}
                         {items.data.length > 0 ? (
-                            <div className="grid gap-4 sm:grid-cols-2">
-                                {items.data.map((item) => (
-                                    <ItemCard key={item.id} item={item} />
-                                ))}
-                            </div>
+                            <InfiniteScroll data="items" preserveUrl>
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    {items.data.map((item) => (
+                                        <ItemCard key={item.id} item={item} />
+                                    ))}
+                                </div>
+                            </InfiniteScroll>
                         ) : (
                             <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 bg-muted/20 py-16 text-center">
                                 <div className="flex size-14 items-center justify-center rounded-full bg-muted">
                                     <Search className="size-7 text-muted-foreground" />
                                 </div>
                                 <h3 className="mt-4 text-lg font-semibold text-foreground">
-                                    No research items yet
+                                    {search || filters.category
+                                        ? 'No results found'
+                                        : 'No research items yet'}
                                 </h3>
                                 <p className="mt-1 max-w-sm text-muted-foreground">
-                                    Start capturing images, documents, or URLs
-                                    to build your personal knowledge base.
+                                    {search || filters.category
+                                        ? 'Try a different search term or category.'
+                                        : 'Start capturing images, documents, or URLs to build your personal knowledge base.'}
                                 </p>
                             </div>
                         )}

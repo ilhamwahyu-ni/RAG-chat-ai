@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -70,5 +71,39 @@ class ResearchItem extends Model
     public function isProcessed(): bool
     {
         return $this->ai_summary !== null;
+    }
+
+    public function getCategory(): ?string
+    {
+        return $this->metadata['category'] ?? null;
+    }
+
+    /**
+     * @param  Builder<self>  $query
+     */
+    public function scopeCategory(Builder $query, ?string $category): void
+    {
+        if (! $category) {
+            return;
+        }
+
+        $query->where('metadata->category', $category);
+    }
+
+    /**
+     * @param  Builder<self>  $query
+     */
+    public function scopeSearch(Builder $query, ?string $search): void
+    {
+        if (! $search) {
+            return;
+        }
+
+        $query->where(function (Builder $q) use ($search) {
+            $q->where('title', 'like', "%{$search}%")
+                ->orWhere('ai_summary', 'like', "%{$search}%")
+                ->orWhere('user_notes', 'like', "%{$search}%")
+                ->orWhere('metadata->category', 'like', "%{$search}%");
+        });
     }
 }

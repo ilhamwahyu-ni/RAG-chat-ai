@@ -14,7 +14,9 @@ export type FeatureType =
     | 'vector-store'
     | 'conversation'
     | 'middleware'
-    | 'vision';
+    | 'vision'
+    | 'broadcasting'
+    | 'categorization';
 
 interface FeatureInfo {
     label: string;
@@ -22,6 +24,8 @@ interface FeatureInfo {
     file: string;
     lineRange?: string;
     code: string;
+    prefix?: string;
+    docUrl?: string;
 }
 
 const featureDetails: Record<FeatureType, FeatureInfo> = {
@@ -146,6 +150,57 @@ return $agent->stream($message);`,
         ->text;
 }`,
     },
+    broadcasting: {
+        label: 'Broadcasting',
+        prefix: 'Laravel',
+        docUrl: 'https://laravel.com/docs/12.x/broadcasting',
+        description:
+            'ShouldBroadcast events push real-time updates via Reverb WebSockets. The AI analysis job dispatches an event when complete — the frontend listens and auto-refreshes.',
+        file: 'app/Events/ResearchItemAnalyzed.php',
+        lineRange: '12-41',
+        code: `class ResearchItemAnalyzed implements ShouldBroadcast
+{
+    public function __construct(
+        public ResearchItem $item,
+    ) {}
+
+    public function broadcastOn(): array
+    {
+        return [
+            new PrivateChannel('App.Models.User.'.$this->item->user_id),
+        ];
+    }
+
+    public function broadcastWith(): array
+    {
+        return [
+            'id' => $this->item->id,
+            'title' => $this->item->title,
+            'ai_summary' => $this->item->ai_summary,
+        ];
+    }
+}`,
+    },
+    categorization: {
+        label: 'Structured Output',
+        description:
+            'Anonymous agent() with a JSON schema constrains the AI to return a structured category. The enum() method on the schema type accepts a BackedEnum class-string directly.',
+        file: 'app/Jobs/AnalyzeResearchItem.php',
+        lineRange: '141-152',
+        code: `protected function categorize(string $content): string
+{
+    $response = agent(
+        instructions: 'Categorize the content...',
+        schema: fn (JsonSchema $schema) => [
+            'category' => $schema->string()
+                ->enum(ResearchCategory::class)->required(),
+        ],
+    )->prompt($content);
+
+    return ResearchCategory::tryFrom($response['category'])?->value
+        ?? ResearchCategory::Other->value;
+}`,
+    },
 };
 
 interface FeatureBadgeProps {
@@ -172,7 +227,7 @@ export function FeatureBadge({
                     )}
                 >
                     <Info className="size-3" />
-                    {showLabel && <span>Laravel AI: {info.label}</span>}
+                    {showLabel && <span>{info.prefix ?? 'Laravel AI'}: {info.label}</span>}
                 </button>
             </TooltipTrigger>
             <TooltipContent
@@ -202,13 +257,13 @@ export function FeatureBadge({
                         <code className="text-primary">{info.code}</code>
                     </pre>
                     <a
-                        href="https://laravel.com/docs/master/ai"
+                        href={info.docUrl ?? 'https://laravel.com/docs/12.x/ai-sdk'}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="mt-3 inline-flex items-center gap-1 text-xs text-primary hover:underline"
                     >
                         <ExternalLink className="size-3" />
-                        Laravel AI Documentation
+                        {info.docUrl ? 'Laravel Documentation' : 'Laravel AI Documentation'}
                     </a>
                 </div>
             </TooltipContent>
