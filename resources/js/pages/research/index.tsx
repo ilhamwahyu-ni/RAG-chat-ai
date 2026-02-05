@@ -179,8 +179,7 @@ export default function ResearchIndex() {
                                         AI analyzes content using{' '}
                                         <FeatureBadge
                                             feature="vision"
-                                            showLabel={false}
-                                            className="inline-flex"
+                                            className="inline-flex align-middle"
                                         />
                                     </span>
                                 </li>
@@ -192,10 +191,8 @@ export default function ResearchIndex() {
                                         Stored in{' '}
                                         <FeatureBadge
                                             feature="vector-store"
-                                            showLabel={false}
-                                            className="inline-flex"
-                                        />{' '}
-                                        for semantic search
+                                            className="inline-flex align-middle"
+                                        />
                                     </span>
                                 </li>
                                 <li className="flex items-start gap-2">
@@ -203,11 +200,10 @@ export default function ResearchIndex() {
                                         4
                                     </span>
                                     <span>
-                                        Query via chat using{' '}
+                                        Query via{' '}
                                         <FeatureBadge
                                             feature="file-search"
-                                            showLabel={false}
-                                            className="inline-flex"
+                                            className="inline-flex align-middle"
                                         />
                                     </span>
                                 </li>
