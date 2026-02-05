@@ -57,7 +57,7 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
     return (
         <>
             <div className="border-b border-border">
-                <div className="mx-auto flex h-14 items-center px-4 md:max-w-5xl">
+                <div className="flex h-14 items-center px-6">
                     {/* Mobile Menu */}
                     <div className="lg:hidden">
                         <Sheet>
@@ -174,7 +174,7 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
             </div>
             {breadcrumbs.length > 1 && (
                 <div className="border-b border-border">
-                    <div className="mx-auto flex h-10 items-center px-4 md:max-w-5xl">
+                    <div className="flex h-10 items-center px-6">
                         <Breadcrumbs breadcrumbs={breadcrumbs} />
                     </div>
                 </div>

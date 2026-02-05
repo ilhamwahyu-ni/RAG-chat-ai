@@ -163,7 +163,7 @@ export default function ResearchIndex() {
                             </h3>
                             <ol className="mt-2 space-y-2 text-sm text-muted-foreground">
                                 <li className="flex items-start gap-2">
-                                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-violet-500/20 text-xs font-medium text-violet-600 dark:text-violet-400">
+                                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-medium text-primary">
                                         1
                                     </span>
                                     <span>
@@ -172,7 +172,7 @@ export default function ResearchIndex() {
                                     </span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-violet-500/20 text-xs font-medium text-violet-600 dark:text-violet-400">
+                                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-medium text-primary">
                                         2
                                     </span>
                                     <span>
@@ -185,7 +185,7 @@ export default function ResearchIndex() {
                                     </span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-violet-500/20 text-xs font-medium text-violet-600 dark:text-violet-400">
+                                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-medium text-primary">
                                         3
                                     </span>
                                     <span>
@@ -199,7 +199,7 @@ export default function ResearchIndex() {
                                     </span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-violet-500/20 text-xs font-medium text-violet-600 dark:text-violet-400">
+                                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-medium text-primary">
                                         4
                                     </span>
                                     <span>
