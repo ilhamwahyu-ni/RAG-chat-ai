@@ -8,9 +8,7 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Ai\Ai;
-use Laravel\Ai\AnonymousAgent;
 use Laravel\Ai\Files;
-use Laravel\Ai\Files\Document;
 use Laravel\Ai\Stores;
 
 class AnalyzeResearchItem implements ShouldQueue

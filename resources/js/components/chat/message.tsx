@@ -18,11 +18,21 @@ const toolLabels: Record<string, string> = {
     web_search: 'Web Search',
 };
 
-export function Message({ role, content, isStreaming, toolCalls }: MessageProps) {
+export function Message({
+    role,
+    content,
+    isStreaming,
+    toolCalls,
+}: MessageProps) {
     const isUser = role === 'user';
 
     return (
-        <div className={cn('flex gap-4', isUser ? 'flex-row-reverse' : 'flex-row')}>
+        <div
+            className={cn(
+                'flex gap-4',
+                isUser ? 'flex-row-reverse' : 'flex-row',
+            )}
+        >
             <div
                 className={cn(
                     'flex size-9 shrink-0 items-center justify-center rounded-full',
@@ -31,13 +41,27 @@ export function Message({ role, content, isStreaming, toolCalls }: MessageProps)
                         : 'bg-gradient-to-br from-violet-500 to-indigo-600 text-white',
                 )}
             >
-                {isUser ? <User className="size-4" /> : <Bot className="size-4" />}
+                {isUser ? (
+                    <User className="size-4" />
+                ) : (
+                    <Bot className="size-4" />
+                )}
             </div>
 
-            <div className={cn('max-w-[80%] space-y-2', isUser ? 'text-right' : 'text-left')}>
+            <div
+                className={cn(
+                    'max-w-[80%] space-y-2',
+                    isUser ? 'text-right' : 'text-left',
+                )}
+            >
                 {/* Tool usage badges */}
                 {!isUser && toolCalls && toolCalls.length > 0 && (
-                    <div className={cn('flex flex-wrap gap-1.5', isUser ? 'justify-end' : 'justify-start')}>
+                    <div
+                        className={cn(
+                            'flex flex-wrap gap-1.5',
+                            isUser ? 'justify-end' : 'justify-start',
+                        )}
+                    >
                         {toolCalls.map((tool) => {
                             const Icon = toolIcons[tool] || Search;
                             const label = toolLabels[tool] || tool;
@@ -58,16 +82,26 @@ export function Message({ role, content, isStreaming, toolCalls }: MessageProps)
                 <div
                     className={cn(
                         'rounded-2xl px-4 py-3',
-                        isUser ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-foreground',
+                        isUser
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted/50 text-foreground',
                     )}
                 >
                     <div className="prose prose-sm dark:prose-invert max-w-none">
                         {content.split('\n').map((paragraph, i) => (
-                            <p key={i} className={cn(i > 0 && 'mt-2', 'leading-relaxed')}>
+                            <p
+                                key={i}
+                                className={cn(
+                                    i > 0 && 'mt-2',
+                                    'leading-relaxed',
+                                )}
+                            >
                                 {paragraph}
                             </p>
                         ))}
-                        {isStreaming && <span className="ml-1 inline-block h-4 w-2 animate-pulse bg-current" />}
+                        {isStreaming && (
+                            <span className="ml-1 inline-block h-4 w-2 animate-pulse bg-current" />
+                        )}
                     </div>
                 </div>
             </div>

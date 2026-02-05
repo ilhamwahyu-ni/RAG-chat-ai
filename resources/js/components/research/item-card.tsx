@@ -48,7 +48,9 @@ export function ItemCard({ item }: ItemCardProps) {
         <div className="group relative overflow-hidden rounded-xl border border-border/50 bg-card transition-all hover:border-border hover:shadow-md">
             {/* Type Badge */}
             <div className="absolute top-3 right-3 z-10">
-                <div className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${typeColors[item.type]}`}>
+                <div
+                    className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${typeColors[item.type]}`}
+                >
                     <Icon className="size-3" />
                     <span className="capitalize">{item.type}</span>
                 </div>
@@ -56,7 +58,7 @@ export function ItemCard({ item }: ItemCardProps) {
 
             {/* Content */}
             <div className="p-5">
-                <h3 className="line-clamp-2 pr-20 text-base font-semibold leading-tight text-foreground">
+                <h3 className="line-clamp-2 pr-20 text-base leading-tight font-semibold text-foreground">
                     {item.title}
                 </h3>
 
@@ -64,7 +66,9 @@ export function ItemCard({ item }: ItemCardProps) {
                     {isProcessing ? (
                         <div className="flex items-center gap-2 text-muted-foreground">
                             <Loader2 className="size-4 animate-spin" />
-                            <span className="text-sm">Analyzing content...</span>
+                            <span className="text-sm">
+                                Analyzing content...
+                            </span>
                         </div>
                     ) : (
                         <p className="line-clamp-3 text-sm leading-relaxed text-muted-foreground">
@@ -88,7 +92,7 @@ export function ItemCard({ item }: ItemCardProps) {
                         size="sm"
                         onClick={handleDelete}
                         disabled={isDeleting}
-                        className="h-8 px-2 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+                        className="h-8 px-2 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
                     >
                         {isDeleting ? (
                             <Loader2 className="size-4 animate-spin" />

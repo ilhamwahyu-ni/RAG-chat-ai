@@ -1,7 +1,10 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { MessageSquare, Plus, Trash2 } from 'lucide-react';
 import { ChatInterface } from '@/components/chat/chat-interface';
-import { FeatureBadge, FeatureBadgeGroup } from '@/components/demo/feature-badge';
+import {
+    FeatureBadge,
+    FeatureBadgeGroup,
+} from '@/components/demo/feature-badge';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import research from '@/routes/research';
@@ -41,17 +44,23 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function ResearchChat() {
-    const { conversations, currentConversation, messages, flash } = usePage<PageProps>().props;
+    const { conversations, currentConversation, messages, flash } =
+        usePage<PageProps>().props;
 
     const handleNewChat = () => {
         router.visit(research.chat().url);
     };
 
     const handleSelectConversation = (conversationId: string) => {
-        router.visit(research.chat({ mergeQuery: { conversation: conversationId } }).url);
+        router.visit(
+            research.chat({ mergeQuery: { conversation: conversationId } }).url,
+        );
     };
 
-    const handleDeleteConversation = (e: React.MouseEvent, conversationId: string) => {
+    const handleDeleteConversation = (
+        e: React.MouseEvent,
+        conversationId: string,
+    ) => {
         e.stopPropagation();
         if (!confirm('Delete this conversation?')) return;
         router.delete(research.chat.destroy(conversationId).url, {
@@ -64,7 +73,9 @@ export default function ResearchChat() {
         let toolCalls: string[] = [];
         try {
             const parsed = JSON.parse(m.tool_calls || '[]');
-            toolCalls = parsed.map((tc: { name?: string }) => tc.name).filter(Boolean);
+            toolCalls = parsed
+                .map((tc: { name?: string }) => tc.name)
+                .filter(Boolean);
         } catch {
             // Ignore parse errors
         }
@@ -84,7 +95,11 @@ export default function ResearchChat() {
                 {/* Sidebar - Conversation List */}
                 <div className="hidden w-72 shrink-0 flex-col border-r border-border/50 bg-muted/20 md:flex">
                     <div className="border-b border-border/50 p-4">
-                        <Button onClick={handleNewChat} className="w-full" variant="outline">
+                        <Button
+                            onClick={handleNewChat}
+                            className="w-full"
+                            variant="outline"
+                        >
                             <Plus className="size-4" />
                             New Chat
                         </Button>
@@ -92,21 +107,31 @@ export default function ResearchChat() {
 
                     {/* Conversation History Feature Badge */}
                     <div className="border-b border-border/50 px-4 py-2">
-                        <FeatureBadge feature="conversation" className="w-full justify-center" />
+                        <FeatureBadge
+                            feature="conversation"
+                            className="w-full justify-center"
+                        />
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-2">
                         {conversations.length === 0 ? (
-                            <div className="p-4 text-center text-sm text-muted-foreground">No conversations yet</div>
+                            <div className="p-4 text-center text-sm text-muted-foreground">
+                                No conversations yet
+                            </div>
                         ) : (
                             <div className="space-y-1">
                                 {conversations.map((conversation) => (
                                     <button
                                         key={conversation.id}
                                         type="button"
-                                        onClick={() => handleSelectConversation(conversation.id)}
+                                        onClick={() =>
+                                            handleSelectConversation(
+                                                conversation.id,
+                                            )
+                                        }
                                         className={`group flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors ${
-                                            currentConversation?.id === conversation.id
+                                            currentConversation?.id ===
+                                            conversation.id
                                                 ? 'bg-primary/10 text-foreground'
                                                 : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                                         }`}
@@ -114,16 +139,24 @@ export default function ResearchChat() {
                                         <MessageSquare className="mt-0.5 size-4 shrink-0" />
                                         <div className="min-w-0 flex-1">
                                             <p className="truncate text-sm font-medium">
-                                                {conversation.title || 'New conversation'}
+                                                {conversation.title ||
+                                                    'New conversation'}
                                             </p>
                                             <p className="mt-0.5 text-xs text-muted-foreground">
-                                                {new Date(conversation.created_at).toLocaleDateString()}
+                                                {new Date(
+                                                    conversation.created_at,
+                                                ).toLocaleDateString()}
                                             </p>
                                         </div>
                                         <button
                                             type="button"
-                                            onClick={(e) => handleDeleteConversation(e, conversation.id)}
-                                            className="p-1 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+                                            onClick={(e) =>
+                                                handleDeleteConversation(
+                                                    e,
+                                                    conversation.id,
+                                                )
+                                            }
+                                            className="p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
                                         >
                                             <Trash2 className="size-3.5" />
                                         </button>
@@ -135,7 +168,10 @@ export default function ResearchChat() {
 
                     {/* Middleware Feature Badge */}
                     <div className="border-t border-border/50 px-4 py-3">
-                        <FeatureBadge feature="middleware" className="w-full justify-center" />
+                        <FeatureBadge
+                            feature="middleware"
+                            className="w-full justify-center"
+                        />
                         <p className="mt-2 text-center text-xs text-muted-foreground">
                             Messages auto-saved via RememberConversation
                         </p>
@@ -147,7 +183,12 @@ export default function ResearchChat() {
                     {/* Feature Badges Header */}
                     <div className="border-b border-border/50 bg-muted/10 px-4 py-3">
                         <FeatureBadgeGroup
-                            features={['agent', 'streaming', 'file-search', 'web-search']}
+                            features={[
+                                'agent',
+                                'streaming',
+                                'file-search',
+                                'web-search',
+                            ]}
                             className="justify-center"
                         />
                     </div>

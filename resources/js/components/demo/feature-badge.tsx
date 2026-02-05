@@ -1,6 +1,9 @@
-import { Code2, Info } from 'lucide-react';
-import { useState } from 'react';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { ExternalLink, FileCode, Info } from 'lucide-react';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 export type FeatureType =
@@ -16,112 +19,132 @@ export type FeatureType =
 interface FeatureInfo {
     label: string;
     description: string;
+    file: string;
+    lineRange?: string;
     code: string;
-    docs?: string;
 }
 
 const featureDetails: Record<FeatureType, FeatureInfo> = {
     streaming: {
         label: 'Streaming',
         description:
-            'Real-time token streaming via Server-Sent Events. The StreamableAgentResponse implements Responsable, so you can return it directly from controllers.',
-        code: `// Just return the stream - Laravel handles SSE
-return $agent->stream($message);`,
-        docs: 'StreamableAgentResponse',
+            'Return StreamableAgentResponse directly - Laravel handles SSE headers, buffering, and the [DONE] signal.',
+        file: 'app/Http/Controllers/ConversationController.php',
+        lineRange: '50-73',
+        code: `public function message(SendMessageRequest $request): StreamableAgentResponse
+{
+    $agent = new ResearchAgent($request->user());
+
+    $conversationId
+        ? $agent->continue($conversationId, $request->user())
+        : $agent->forUser($request->user());
+
+    return $agent->stream($request->validated('message'));
+}`,
     },
     agent: {
         label: 'Agent',
         description:
-            'Agents encapsulate AI behavior with instructions, tools, and conversation handling. Use attributes for configuration.',
+            'Agents implement interfaces defining their behavior. Attributes configure provider and temperature.',
+        file: 'app/Agents/ResearchAgent.php',
+        lineRange: '19-28',
         code: `#[Provider('openai')]
 #[Temperature(0.7)]
-class ResearchAgent implements Agent, HasTools
+class ResearchAgent implements Agent, Conversational, HasMiddleware, HasTools
 {
     use Promptable;
+    use RemembersConversations;
 
-    public function instructions(): string { ... }
-    public function tools(): iterable { ... }
+    public function __construct(protected User $user) {}
 }`,
-        docs: 'Agent Interface',
     },
     'file-search': {
         label: 'FileSearch',
         description:
-            "OpenAI's built-in semantic search over your vector store. The AI automatically decides when to search based on the query.",
+            "OpenAI's semantic search over your vector store. AI decides when to search based on the query.",
+        file: 'app/Agents/ResearchAgent.php',
+        lineRange: '57-70',
         code: `public function tools(): iterable
 {
-    return [
-        new FileSearch([$this->user->vector_store_id]),
-    ];
+    $tools = [];
+
+    if ($this->user->hasVectorStore()) {
+        $tools[] = new FileSearch([$this->user->vector_store_id]);
+    }
+
+    $tools[] = new WebSearch;
+
+    return $tools;
 }`,
-        docs: 'FileSearch Provider Tool',
     },
     'web-search': {
         label: 'WebSearch',
         description:
-            'AI-powered web search. The agent autonomously searches the web when it needs more information beyond the knowledge base.',
-        code: `public function tools(): iterable
-{
-    return [
-        new WebSearch(),
-    ];
-}`,
-        docs: 'WebSearch Provider Tool',
+            'AI-powered web search. The agent autonomously searches when it needs current information.',
+        file: 'app/Agents/ResearchAgent.php',
+        lineRange: '68',
+        code: `$tools[] = new WebSearch;`,
     },
     'vector-store': {
         label: 'Vector Store',
         description:
-            "OpenAI's managed vector storage. Files are automatically chunked, embedded, and indexed. No pgvector setup required.",
-        code: `// Create a store for the user
-$store = Stores::create("user-{$user->id}");
-$user->update(['vector_store_id' => $store->id]);
-
-// Upload and index a file
-$file = Files::put($document);
-$store->add($file->id);`,
-        docs: 'Stores & Files',
+            "OpenAI's managed vector storage. Files are auto-chunked, embedded, and indexed. No pgvector needed.",
+        file: 'app/Jobs/AnalyzeResearchItem.php',
+        lineRange: '45-52',
+        code: `protected function ensureUserHasVectorStore(): void
+{
+    if (! $this->user->hasVectorStore()) {
+        $store = Stores::create("user-{$this->user->id}-research");
+        $this->user->update(['vector_store_id' => $store->id]);
+    }
+}`,
     },
     conversation: {
         label: 'Conversational',
         description:
-            'Automatic conversation history management. The RemembersConversations trait handles loading previous messages into context.',
-        code: `class ResearchAgent implements Conversational
-{
-    use RemembersConversations;
+            'RemembersConversations trait loads message history. Use continue() or forUser() to manage state.',
+        file: 'app/Http/Controllers/ConversationController.php',
+        lineRange: '57-71',
+        code: `$agent = new ResearchAgent($user);
+
+if ($conversationId) {
+    // Verify ownership then continue
+    $agent->continue($conversationId, $user);
+} else {
+    // Start new conversation
+    $agent->forUser($user);
 }
 
-// Continue existing conversation
-$agent->continue($conversationId, $user);
-
-// Or start new
-$agent->forUser($user);`,
-        docs: 'Conversational Interface',
+return $agent->stream($message);`,
     },
     middleware: {
         label: 'Middleware',
         description:
-            'Agent middleware runs before/after prompts. RememberConversation automatically persists messages to the database.',
-        code: `class ResearchAgent implements HasMiddleware
+            'RememberConversation middleware auto-saves messages to agent_conversation_messages table.',
+        file: 'app/Agents/ResearchAgent.php',
+        lineRange: '47-54',
+        code: `public function middleware(): array
 {
-    public function middleware(): array
-    {
-        return [
-            RememberConversation::class,
-        ];
-    }
+    return [
+        RememberConversation::class,
+    ];
 }`,
-        docs: 'Agent Middleware',
     },
     vision: {
         label: 'Vision',
         description:
-            'Multi-modal support for image analysis. Pass images as attachments and the AI can describe, analyze, or extract text.',
-        code: `// Analyze an image
-$response = $agent->prompt(
-    'Describe this image',
-    attachments: [new LocalImage($path)]
-);`,
-        docs: 'Vision & Attachments',
+            'Multi-modal image analysis. Pass LocalImage attachments for the AI to describe or extract text.',
+        file: 'app/Jobs/AnalyzeResearchItem.php',
+        lineRange: '68-77',
+        code: `protected function analyzeImage(): void
+{
+    $summary = Ai::agent()
+        ->prompt(
+            'Describe this image in detail...',
+            attachments: [new LocalImage($absolutePath)]
+        )
+        ->text;
+}`,
     },
 };
 
@@ -131,8 +154,11 @@ interface FeatureBadgeProps {
     showLabel?: boolean;
 }
 
-export function FeatureBadge({ feature, className, showLabel = true }: FeatureBadgeProps) {
-    const [showCode, setShowCode] = useState(false);
+export function FeatureBadge({
+    feature,
+    className,
+    showLabel = true,
+}: FeatureBadgeProps) {
     const info = featureDetails[feature];
 
     return (
@@ -141,7 +167,7 @@ export function FeatureBadge({ feature, className, showLabel = true }: FeatureBa
                 <button
                     type="button"
                     className={cn(
-                        'inline-flex items-center gap-1 rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-xs font-medium text-violet-600 transition-colors hover:bg-violet-500/20 dark:text-violet-400',
+                        'inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20',
                         className,
                     )}
                 >
@@ -150,33 +176,40 @@ export function FeatureBadge({ feature, className, showLabel = true }: FeatureBa
                 </button>
             </TooltipTrigger>
             <TooltipContent
-                className="max-w-md bg-zinc-900 p-0 text-zinc-100"
+                className="max-w-lg bg-card p-0 text-card-foreground"
                 side="bottom"
                 align="start"
             >
                 <div className="p-3">
-                    <div className="flex items-center justify-between">
-                        <h4 className="font-semibold text-violet-400">{info.label}</h4>
-                        <button
-                            type="button"
-                            onClick={() => setShowCode(!showCode)}
-                            className="flex items-center gap-1 rounded bg-zinc-800 px-2 py-0.5 text-xs text-zinc-400 hover:text-zinc-200"
-                        >
-                            <Code2 className="size-3" />
-                            {showCode ? 'Hide' : 'Show'} Code
-                        </button>
+                    <div className="flex items-center justify-between gap-4">
+                        <h4 className="font-semibold text-primary">
+                            {info.label}
+                        </h4>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <FileCode className="size-3" />
+                            <span className="font-mono">{info.file}</span>
+                            {info.lineRange && (
+                                <span className="opacity-60">
+                                    :{info.lineRange}
+                                </span>
+                            )}
+                        </div>
                     </div>
-                    <p className="mt-2 text-sm leading-relaxed text-zinc-300">{info.description}</p>
-                    {showCode && (
-                        <pre className="mt-3 overflow-x-auto rounded-lg bg-zinc-950 p-3 text-xs">
-                            <code className="text-emerald-400">{info.code}</code>
-                        </pre>
-                    )}
-                    {info.docs && (
-                        <p className="mt-2 text-xs text-zinc-500">
-                            📚 {info.docs}
-                        </p>
-                    )}
+                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                        {info.description}
+                    </p>
+                    <pre className="mt-3 overflow-x-auto rounded-md border border-border bg-background p-3 text-xs leading-relaxed">
+                        <code className="text-primary">{info.code}</code>
+                    </pre>
+                    <a
+                        href="https://laravel.com/docs/master/ai"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-3 inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                    >
+                        <ExternalLink className="size-3" />
+                        Laravel AI Documentation
+                    </a>
                 </div>
             </TooltipContent>
         </Tooltip>
@@ -188,7 +221,10 @@ interface FeatureBadgeGroupProps {
     className?: string;
 }
 
-export function FeatureBadgeGroup({ features, className }: FeatureBadgeGroupProps) {
+export function FeatureBadgeGroup({
+    features,
+    className,
+}: FeatureBadgeGroupProps) {
     return (
         <div className={cn('flex flex-wrap items-center gap-2', className)}>
             <span className="text-xs text-muted-foreground">Powered by:</span>

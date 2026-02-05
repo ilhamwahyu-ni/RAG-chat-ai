@@ -100,8 +100,14 @@ export function CaptureForm() {
                     >
                         <input
                             type="file"
-                            accept={activeTab === 'image' ? 'image/*' : '.pdf,.doc,.docx,.txt'}
-                            onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
+                            accept={
+                                activeTab === 'image'
+                                    ? 'image/*'
+                                    : '.pdf,.doc,.docx,.txt'
+                            }
+                            onChange={(e) =>
+                                handleFileChange(e.target.files?.[0] || null)
+                            }
                             className="absolute inset-0 cursor-pointer opacity-0"
                         />
 
@@ -115,9 +121,14 @@ export function CaptureForm() {
                                     )}
                                 </div>
                                 <div>
-                                    <p className="font-medium text-foreground">{data.file.name}</p>
+                                    <p className="font-medium text-foreground">
+                                        {data.file.name}
+                                    </p>
                                     <p className="text-sm text-muted-foreground">
-                                        {(data.file.size / 1024 / 1024).toFixed(2)} MB
+                                        {(data.file.size / 1024 / 1024).toFixed(
+                                            2,
+                                        )}{' '}
+                                        MB
                                     </p>
                                 </div>
                             </div>
@@ -128,7 +139,8 @@ export function CaptureForm() {
                                 </div>
                                 <div>
                                     <p className="font-medium text-foreground">
-                                        Drop your {activeTab} here or click to browse
+                                        Drop your {activeTab} here or click to
+                                        browse
                                     </p>
                                     <p className="text-sm text-muted-foreground">
                                         {activeTab === 'image'
@@ -157,10 +169,23 @@ export function CaptureForm() {
                     </div>
                 )}
 
-                {errors.file && <p className="mt-2 text-sm text-destructive">{errors.file}</p>}
-                {errors.url && <p className="mt-2 text-sm text-destructive">{errors.url}</p>}
+                {errors.file && (
+                    <p className="mt-2 text-sm text-destructive">
+                        {errors.file}
+                    </p>
+                )}
+                {errors.url && (
+                    <p className="mt-2 text-sm text-destructive">
+                        {errors.url}
+                    </p>
+                )}
 
-                <Button type="submit" disabled={processing} className="mt-6 w-full" size="lg">
+                <Button
+                    type="submit"
+                    disabled={processing}
+                    className="mt-6 w-full"
+                    size="lg"
+                >
                     {processing ? (
                         <>
                             <Loader2 className="size-4 animate-spin" />

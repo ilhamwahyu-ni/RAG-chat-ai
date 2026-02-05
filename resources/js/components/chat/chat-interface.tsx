@@ -23,20 +23,18 @@ interface StreamEvent {
 interface ChatInterfaceProps {
     initialMessages?: MessageData[];
     conversationId?: string | null;
-    onConversationCreated?: (id: string) => void;
 }
 
 export function ChatInterface({
     initialMessages = [],
     conversationId: initialConversationId = null,
-    onConversationCreated,
 }: ChatInterfaceProps) {
     const [messages, setMessages] = useState<MessageData[]>(initialMessages);
     const [input, setInput] = useState('');
     const [isStreaming, setIsStreaming] = useState(false);
     const [streamingContent, setStreamingContent] = useState('');
     const [activeTools, setActiveTools] = useState<string[]>([]);
-    const [conversationId, setConversationId] = useState<string | null>(initialConversationId);
+    const [conversationId] = useState<string | null>(initialConversationId);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -74,7 +72,9 @@ export function ChatInterface({
         setActiveTools([]);
 
         try {
-            const csrfToken = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content;
+            const csrfToken = document.querySelector<HTMLMetaElement>(
+                'meta[name="csrf-token"]',
+            )?.content;
 
             const response = await fetch(research.message().url, {
                 method: 'POST',
@@ -111,7 +111,12 @@ export function ChatInterface({
                             if (data === '[DONE]') {
                                 // Stream complete - refresh to get conversation ID if new
                                 if (!conversationId) {
-                                    router.reload({ only: ['conversations', 'currentConversation'] });
+                                    router.reload({
+                                        only: [
+                                            'conversations',
+                                            'currentConversation',
+                                        ],
+                                    });
                                 }
                                 continue;
                             }
@@ -128,7 +133,10 @@ export function ChatInterface({
                                         break;
 
                                     case 'tool_call':
-                                        if (event.tool_name && !toolsUsed.includes(event.tool_name)) {
+                                        if (
+                                            event.tool_name &&
+                                            !toolsUsed.includes(event.tool_name)
+                                        ) {
                                             toolsUsed.push(event.tool_name);
                                             setActiveTools([...toolsUsed]);
                                         }
@@ -163,7 +171,8 @@ export function ChatInterface({
             const errorMessage: MessageData = {
                 id: crypto.randomUUID(),
                 role: 'assistant',
-                content: 'Sorry, there was an error processing your request. Please try again.',
+                content:
+                    'Sorry, there was an error processing your request. Please try again.',
             };
             setMessages((prev) => [...prev, errorMessage]);
         } finally {
@@ -189,24 +198,28 @@ export function ChatInterface({
                         <div className="flex size-16 items-center justify-center rounded-full bg-gradient-to-br from-violet-500/20 to-indigo-600/20">
                             <Sparkles className="size-8 text-violet-500" />
                         </div>
-                        <h3 className="mt-4 text-xl font-semibold text-foreground">Start a conversation</h3>
+                        <h3 className="mt-4 text-xl font-semibold text-foreground">
+                            Start a conversation
+                        </h3>
                         <p className="mt-2 max-w-sm text-muted-foreground">
-                            Ask questions about your saved research. I'll search your knowledge base and the web to
-                            find answers.
+                            Ask questions about your saved research. I'll search
+                            your knowledge base and the web to find answers.
                         </p>
                         <div className="mt-6 flex flex-wrap justify-center gap-2">
-                            {['What have I saved about AI?', 'Summarize my recent research', 'Find connections in my notes'].map(
-                                (suggestion) => (
-                                    <button
-                                        key={suggestion}
-                                        type="button"
-                                        onClick={() => setInput(suggestion)}
-                                        className="rounded-full border border-border/50 bg-muted/30 px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground"
-                                    >
-                                        {suggestion}
-                                    </button>
-                                ),
-                            )}
+                            {[
+                                'What have I saved about AI?',
+                                'Summarize my recent research',
+                                'Find connections in my notes',
+                            ].map((suggestion) => (
+                                <button
+                                    key={suggestion}
+                                    type="button"
+                                    onClick={() => setInput(suggestion)}
+                                    className="rounded-full border border-border/50 bg-muted/30 px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground"
+                                >
+                                    {suggestion}
+                                </button>
+                            ))}
                         </div>
                     </div>
                 ) : (
@@ -235,7 +248,11 @@ export function ChatInterface({
                                     </div>
                                 )}
                                 {streamingContent ? (
-                                    <Message role="assistant" content={streamingContent} isStreaming />
+                                    <Message
+                                        role="assistant"
+                                        content={streamingContent}
+                                        isStreaming
+                                    />
                                 ) : (
                                     <div className="flex items-center gap-3 text-muted-foreground">
                                         <Loader2 className="size-5 animate-spin" />
@@ -271,12 +288,22 @@ export function ChatInterface({
                                 target.style.height = `${Math.min(target.scrollHeight, 128)}px`;
                             }}
                         />
-                        <Button type="submit" size="icon" disabled={!input.trim() || isStreaming} className="size-10 shrink-0 rounded-xl">
-                            {isStreaming ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+                        <Button
+                            type="submit"
+                            size="icon"
+                            disabled={!input.trim() || isStreaming}
+                            className="size-10 shrink-0 rounded-xl"
+                        >
+                            {isStreaming ? (
+                                <Loader2 className="size-4 animate-spin" />
+                            ) : (
+                                <Send className="size-4" />
+                            )}
                         </Button>
                     </div>
                     <p className="mt-2 text-center text-xs text-muted-foreground">
-                        AI searches your knowledge base and the web to answer questions
+                        AI searches your knowledge base and the web to answer
+                        questions
                     </p>
                 </form>
             </div>
