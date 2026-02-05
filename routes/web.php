@@ -19,11 +19,17 @@ Route::get('dashboard', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('research', [ResearchController::class, 'index'])->name('research.index');
     Route::post('research', [ResearchController::class, 'store'])->name('research.store');
-    Route::delete('research/{item}', [ResearchController::class, 'destroy'])->name('research.destroy');
+    Route::post('research/bulk', [ResearchController::class, 'bulkStore'])->name('research.bulk-store');
 
     Route::get('research/chat', [ConversationController::class, 'index'])->name('research.chat');
-    Route::post('research/chat', [ConversationController::class, 'message'])->name('research.message');
+    Route::post('research/chat/stream', [ConversationController::class, 'stream'])->name('research.stream');
+    Route::get('research/chat/{conversation}/title-stream', [ConversationController::class, 'titleStream'])->name('research.chat.title-stream');
     Route::delete('research/chat/{conversation}', [ConversationController::class, 'destroy'])->name('research.chat.destroy');
+
+    Route::get('research/{item}', [ResearchController::class, 'show'])->name('research.show');
+    Route::put('research/{item}', [ResearchController::class, 'update'])->name('research.update');
+    Route::get('research/{item}/file', [ResearchController::class, 'serveFile'])->name('research.serve-file');
+    Route::delete('research/{item}', [ResearchController::class, 'destroy'])->name('research.destroy');
 });
 
 require __DIR__.'/settings.php';

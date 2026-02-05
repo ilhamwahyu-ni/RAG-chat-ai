@@ -19,7 +19,7 @@ class StoreResearchItemRequest extends FormRequest
     {
         return [
             'type' => ['required', Rule::in(['image', 'document', 'url'])],
-            'file' => ['required_if:type,image,document', 'file', 'max:20480'],
+            'file' => ['required_if:type,image,document', 'nullable', 'file', 'max:20480'],
             'url' => ['required_if:type,url', 'nullable', 'url', 'max:2048'],
             'notes' => ['nullable', 'string', 'max:5000'],
         ];

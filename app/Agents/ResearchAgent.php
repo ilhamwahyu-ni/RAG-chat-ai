@@ -8,9 +8,7 @@ use Laravel\Ai\Attributes\Temperature;
 use Laravel\Ai\Concerns\RemembersConversations;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Contracts\Conversational;
-use Laravel\Ai\Contracts\HasMiddleware;
 use Laravel\Ai\Contracts\HasTools;
-use Laravel\Ai\Middleware\RememberConversation;
 use Laravel\Ai\Promptable;
 use Laravel\Ai\Providers\Tools\FileSearch;
 use Laravel\Ai\Providers\Tools\WebSearch;
@@ -18,7 +16,7 @@ use Stringable;
 
 #[Provider('openai')]
 #[Temperature(0.7)]
-class ResearchAgent implements Agent, Conversational, HasMiddleware, HasTools
+class ResearchAgent implements Agent, Conversational, HasTools
 {
     use Promptable;
     use RemembersConversations;
@@ -42,16 +40,6 @@ class ResearchAgent implements Agent, Conversational, HasMiddleware, HasTools
             Your goal is to help the user leverage their saved research and find connections
             between their saved content and new information from the web.
             PROMPT;
-    }
-
-    /**
-     * @return array<class-string>
-     */
-    public function middleware(): array
-    {
-        return [
-            RememberConversation::class,
-        ];
     }
 
     /**

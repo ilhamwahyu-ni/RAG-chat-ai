@@ -1,4 +1,4 @@
-import { router } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import { FileText, Globe, ImageIcon, Loader2, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,9 @@ interface ItemCardProps {
 export function ItemCard({ item }: ItemCardProps) {
     const [isDeleting, setIsDeleting] = useState(false);
 
-    const handleDelete = () => {
+    const handleDelete = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
         if (!confirm('Are you sure you want to delete this item?')) return;
 
         setIsDeleting(true);
@@ -45,7 +47,10 @@ export function ItemCard({ item }: ItemCardProps) {
     const isProcessing = !item.ai_summary;
 
     return (
-        <div className="group relative overflow-hidden rounded-xl border border-border/50 bg-card transition-all hover:border-border hover:shadow-md">
+        <Link
+            href={research.show(item.id).url}
+            className="group relative block overflow-hidden rounded-xl border border-border/50 bg-card transition-all hover:border-border hover:shadow-md"
+        >
             {/* Type Badge */}
             <div className="absolute top-3 right-3 z-10">
                 <div
@@ -105,6 +110,6 @@ export function ItemCard({ item }: ItemCardProps) {
 
             {/* Subtle gradient overlay for depth */}
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-        </div>
+        </Link>
     );
 }

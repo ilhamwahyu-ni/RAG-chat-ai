@@ -4,11 +4,11 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class SendMessageRequest extends FormRequest
+class UpdateResearchItemRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->route('item')->user_id === $this->user()->id;
     }
 
     /**
@@ -17,8 +17,8 @@ class SendMessageRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'message' => ['required', 'string', 'max:10000'],
-            'conversation_id' => ['nullable', 'uuid', 'exists:agent_conversations,id'],
+            'title' => ['required', 'string', 'max:100'],
+            'user_notes' => ['nullable', 'string', 'max:5000'],
         ];
     }
 }

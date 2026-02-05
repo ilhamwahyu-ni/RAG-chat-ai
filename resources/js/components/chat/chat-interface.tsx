@@ -72,16 +72,20 @@ export function ChatInterface({
         setActiveTools([]);
 
         try {
-            const csrfToken = document.querySelector<HTMLMetaElement>(
-                'meta[name="csrf-token"]',
-            )?.content;
+            // Get XSRF token from cookie (Laravel's default for SPAs)
+            const xsrfToken = document.cookie
+                .split('; ')
+                .find((row) => row.startsWith('XSRF-TOKEN='))
+                ?.split('=')[1];
 
             const response = await fetch(research.message().url, {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: {
                     'Content-Type': 'application/json',
                     Accept: 'text/event-stream',
-                    'X-CSRF-TOKEN': csrfToken || '',
+                    'X-XSRF-TOKEN': xsrfToken ? decodeURIComponent(xsrfToken) : '',
+                    'X-Requested-With': 'XMLHttpRequest',
                 },
                 body: JSON.stringify({
                     message: userMessage.content,
@@ -89,7 +93,11 @@ export function ChatInterface({
                 }),
             });
 
-            if (!response.ok) throw new Error('Failed to send message');
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Chat error:', response.status, errorText);
+                throw new Error(`Failed to send message: ${response.status}`);
+            }
 
             const reader = response.body?.getReader();
             const decoder = new TextDecoder();
@@ -190,7 +198,7 @@ export function ChatInterface({
     };
 
     return (
-        <div className="flex h-full flex-col">
+        <div className="flex h-[500px] flex-col">
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto p-6">
                 {messages.length === 0 && !isStreaming ? (
@@ -223,7 +231,7 @@ export function ChatInterface({
                         </div>
                     </div>
                 ) : (
-                    <div className="mx-auto max-w-3xl space-y-6">
+                    <div className="space-y-6">
                         {messages.map((message) => (
                             <Message
                                 key={message.id}
@@ -267,9 +275,9 @@ export function ChatInterface({
             </div>
 
             {/* Input Area */}
-            <div className="border-t border-border/50 bg-background/80 p-4 backdrop-blur-sm">
-                <form onSubmit={handleSubmit} className="mx-auto max-w-3xl">
-                    <div className="relative flex items-end gap-3 rounded-2xl border border-border/50 bg-muted/30 p-2 transition-colors focus-within:border-border focus-within:bg-muted/50">
+            <div className="border-t border-border/50 p-4">
+                <form onSubmit={handleSubmit}>
+                    <div className="relative flex items-end gap-3 rounded-xl border border-border/50 bg-muted/30 p-2 transition-colors focus-within:border-border focus-within:bg-muted/50">
                         <textarea
                             ref={inputRef}
                             value={input}
@@ -292,7 +300,7 @@ export function ChatInterface({
                             type="submit"
                             size="icon"
                             disabled={!input.trim() || isStreaming}
-                            className="size-10 shrink-0 rounded-xl"
+                            className="size-10 shrink-0 rounded-lg"
                         >
                             {isStreaming ? (
                                 <Loader2 className="size-4 animate-spin" />

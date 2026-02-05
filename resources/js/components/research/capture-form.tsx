@@ -1,64 +1,80 @@
 import { useForm } from '@inertiajs/react';
-import { FileText, Globe, ImageIcon, Loader2, Upload } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { FileText, Globe, Loader2, Upload, X } from 'lucide-react';
+import { useCallback, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import research from '@/routes/research';
 
-type CaptureType = 'image' | 'document' | 'url';
+type CaptureTab = 'files' | 'urls';
 
 export function CaptureForm() {
-    const [activeTab, setActiveTab] = useState<CaptureType>('image');
+    const [activeTab, setActiveTab] = useState<CaptureTab>('files');
     const [isDragOver, setIsDragOver] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const { data, setData, post, processing, reset, errors } = useForm<{
-        type: CaptureType;
-        file: File | null;
-        url: string;
-        notes: string;
-    }>({
-        type: 'image',
-        file: null,
-        url: '',
-        notes: '',
-    });
+    const { data, setData, post, processing, reset, errors, clearErrors } =
+        useForm<{
+            files: File[];
+            urls: string;
+            notes: string;
+        }>({
+            files: [],
+            urls: '',
+            notes: '',
+        });
 
-    const handleTabChange = (type: CaptureType) => {
-        setActiveTab(type);
-        setData({ type, file: null, url: '', notes: '' });
+    const handleTabChange = (tab: CaptureTab) => {
+        setActiveTab(tab);
+        setData({ files: [], urls: '', notes: '' });
+        clearErrors();
     };
 
-    const handleFileChange = useCallback(
-        (file: File | null) => {
-            setData('file', file);
+    const addFiles = useCallback(
+        (newFiles: FileList | File[]) => {
+            const arr = Array.from(newFiles);
+            setData('files', [...data.files, ...arr].slice(0, 20));
         },
-        [setData],
+        [data.files, setData],
+    );
+
+    const removeFile = useCallback(
+        (index: number) => {
+            setData(
+                'files',
+                data.files.filter((_, i) => i !== index),
+            );
+        },
+        [data.files, setData],
     );
 
     const handleDrop = useCallback(
         (e: React.DragEvent) => {
             e.preventDefault();
             setIsDragOver(false);
-            const file = e.dataTransfer.files[0];
-            if (file) {
-                handleFileChange(file);
+            if (e.dataTransfer.files.length > 0) {
+                addFiles(e.dataTransfer.files);
             }
         },
-        [handleFileChange],
+        [addFiles],
     );
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        post(research.store().url, {
+        post(research.bulkStore().url, {
             forceFormData: true,
             onSuccess: () => reset(),
         });
     };
 
+    const itemCount =
+        activeTab === 'files'
+            ? data.files.length
+            : data.urls
+                  .split('\n')
+                  .filter((line) => line.trim() !== '').length;
+
     const tabs = [
-        { type: 'image' as const, label: 'Image', icon: ImageIcon },
-        { type: 'document' as const, label: 'Document', icon: FileText },
-        { type: 'url' as const, label: 'URL', icon: Globe },
+        { type: 'files' as const, label: 'Files', icon: Upload },
+        { type: 'urls' as const, label: 'URLs', icon: Globe },
     ];
 
     return (
@@ -84,101 +100,115 @@ export function CaptureForm() {
 
             {/* Form Content */}
             <form onSubmit={handleSubmit} className="p-6">
-                {activeTab !== 'url' ? (
-                    <div
-                        onDragOver={(e) => {
-                            e.preventDefault();
-                            setIsDragOver(true);
-                        }}
-                        onDragLeave={() => setIsDragOver(false)}
-                        onDrop={handleDrop}
-                        className={`relative flex min-h-[200px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed transition-all ${
-                            isDragOver
-                                ? 'border-primary bg-primary/5'
-                                : data.file
-                                  ? 'border-green-500/50 bg-green-500/5'
-                                  : 'border-border/50 bg-muted/20 hover:border-primary/50 hover:bg-muted/30'
-                        }`}
-                    >
+                {activeTab === 'files' ? (
+                    <>
                         <input
+                            ref={fileInputRef}
                             type="file"
-                            accept={
-                                activeTab === 'image'
-                                    ? 'image/*'
-                                    : '.pdf,.doc,.docx,.txt'
-                            }
-                            onChange={(e) =>
-                                handleFileChange(e.target.files?.[0] || null)
-                            }
-                            className="absolute inset-0 cursor-pointer opacity-0"
+                            multiple
+                            accept="image/*,.pdf,.doc,.docx,.txt"
+                            onChange={(e) => {
+                                if (e.target.files) {
+                                    addFiles(e.target.files);
+                                }
+                                e.target.value = '';
+                            }}
+                            className="hidden"
                         />
-
-                        {data.file ? (
-                            <div className="flex flex-col items-center gap-3 text-center">
-                                <div className="flex size-14 items-center justify-center rounded-full bg-green-500/10">
-                                    {activeTab === 'image' ? (
-                                        <ImageIcon className="size-7 text-green-500" />
-                                    ) : (
-                                        <FileText className="size-7 text-green-500" />
-                                    )}
-                                </div>
-                                <div>
-                                    <p className="font-medium text-foreground">
-                                        {data.file.name}
-                                    </p>
-                                    <p className="text-sm text-muted-foreground">
-                                        {(data.file.size / 1024 / 1024).toFixed(
-                                            2,
-                                        )}{' '}
-                                        MB
-                                    </p>
-                                </div>
-                            </div>
-                        ) : (
+                        <div
+                            onClick={() => fileInputRef.current?.click()}
+                            onDragOver={(e) => {
+                                e.preventDefault();
+                                setIsDragOver(true);
+                            }}
+                            onDragLeave={() => setIsDragOver(false)}
+                            onDrop={handleDrop}
+                            className={`flex min-h-[160px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 transition-all ${
+                                isDragOver
+                                    ? 'border-primary bg-primary/5'
+                                    : data.files.length > 0
+                                      ? 'border-green-500/50 bg-green-500/5'
+                                      : 'border-border/50 bg-muted/20 hover:border-primary/50 hover:bg-muted/30'
+                            }`}
+                        >
                             <div className="flex flex-col items-center gap-3 text-center">
                                 <div className="flex size-14 items-center justify-center rounded-full bg-muted">
                                     <Upload className="size-7 text-muted-foreground" />
                                 </div>
                                 <div>
                                     <p className="font-medium text-foreground">
-                                        Drop your {activeTab} here or click to
-                                        browse
+                                        Drop files here or click to browse
                                     </p>
                                     <p className="text-sm text-muted-foreground">
-                                        {activeTab === 'image'
-                                            ? 'PNG, JPG, GIF up to 20MB'
-                                            : 'PDF, DOC, TXT up to 20MB'}
+                                        Images, PDFs, DOC, TXT up to 20MB each
+                                        (max 20 files)
                                     </p>
                                 </div>
                             </div>
+                        </div>
+
+                        {/* File list */}
+                        {data.files.length > 0 && (
+                            <div className="mt-3 space-y-1.5">
+                                {data.files.map((file, index) => (
+                                    <div
+                                        key={`${file.name}-${index}`}
+                                        className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/20 px-3 py-2 text-sm"
+                                    >
+                                        {file.type.startsWith('image/') ? (
+                                            <Upload className="size-3.5 shrink-0 text-violet-500" />
+                                        ) : (
+                                            <FileText className="size-3.5 shrink-0 text-blue-500" />
+                                        )}
+                                        <span className="min-w-0 flex-1 truncate text-foreground">
+                                            {file.name}
+                                        </span>
+                                        <span className="shrink-0 text-xs text-muted-foreground">
+                                            {(file.size / 1024 / 1024).toFixed(
+                                                1,
+                                            )}
+                                            MB
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => removeFile(index)}
+                                            className="shrink-0 rounded p-0.5 text-muted-foreground transition-colors hover:text-destructive"
+                                        >
+                                            <X className="size-3.5" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
                         )}
-                    </div>
+                    </>
                 ) : (
                     <div className="space-y-4">
                         <div className="relative">
-                            <Globe className="absolute top-1/2 left-3 size-5 -translate-y-1/2 text-muted-foreground" />
-                            <Input
-                                type="url"
-                                placeholder="https://example.com/article"
-                                value={data.url}
-                                onChange={(e) => setData('url', e.target.value)}
-                                className="h-12 pl-10 text-base"
+                            <Globe className="absolute top-3 left-3 size-5 text-muted-foreground" />
+                            <textarea
+                                placeholder={
+                                    'Paste URLs, one per line\nhttps://example.com/article-1\nhttps://example.com/article-2'
+                                }
+                                value={data.urls}
+                                onChange={(e) => setData('urls', e.target.value)}
+                                rows={6}
+                                className="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 flex w-full rounded-md border bg-transparent py-2 pr-3 pl-10 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
                             />
                         </div>
                         <p className="text-sm text-muted-foreground">
-                            Enter a URL to capture and analyze its content
+                            Enter URLs to capture and analyze their content
                         </p>
                     </div>
                 )}
 
-                {errors.file && (
+                {errors.files && (
                     <p className="mt-2 text-sm text-destructive">
-                        {errors.file}
+                        {errors.files}
                     </p>
                 )}
-                {errors.url && (
+                {errors.urls && (
                     <p className="mt-2 text-sm text-destructive">
-                        {errors.url}
+                        {errors.urls}
                     </p>
                 )}
 
@@ -193,7 +223,7 @@ export function CaptureForm() {
                     </label>
                     <textarea
                         id="notes"
-                        placeholder="Add context or notes about this item..."
+                        placeholder="Add context or notes about these items..."
                         value={data.notes}
                         onChange={(e) => setData('notes', e.target.value)}
                         rows={3}
@@ -212,7 +242,7 @@ export function CaptureForm() {
 
                 <Button
                     type="submit"
-                    disabled={processing}
+                    disabled={processing || itemCount === 0}
                     className="mt-6 w-full"
                     size="lg"
                 >
@@ -224,7 +254,9 @@ export function CaptureForm() {
                     ) : (
                         <>
                             <Upload className="size-4" />
-                            Capture & Analyze
+                            {itemCount > 0
+                                ? `Capture ${itemCount} item${itemCount !== 1 ? 's' : ''}`
+                                : 'Capture & Analyze'}
                         </>
                     )}
                 </Button>

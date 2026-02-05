@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\BulkStoreResearchItemRequest;
 use App\Http\Requests\StoreResearchItemRequest;
+use App\Http\Requests\UpdateResearchItemRequest;
 use App\Jobs\AnalyzeResearchItem;
 use App\Models\ResearchItem;
 use Illuminate\Http\RedirectResponse;
@@ -10,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ResearchController extends Controller
 {
@@ -22,6 +25,15 @@ class ResearchController extends Controller
 
         return Inertia::render('research/index', [
             'items' => $items,
+        ]);
+    }
+
+    public function show(Request $request, ResearchItem $item): Response
+    {
+        abort_if($item->user_id !== $request->user()->id, 403);
+
+        return Inertia::render('research/show', [
+            'item' => $item,
         ]);
     }
 
@@ -56,6 +68,73 @@ class ResearchController extends Controller
 
         return redirect()->route('research.index')
             ->with('success', 'Item captured! Analysis in progress...');
+    }
+
+    public function bulkStore(BulkStoreResearchItemRequest $request): RedirectResponse
+    {
+        $user = $request->user();
+        $notes = $request->validated('notes');
+        $count = 0;
+
+        foreach ($request->file('files', []) as $file) {
+            $type = str_starts_with($file->getMimeType(), 'image/') ? 'image' : 'document';
+            $path = $file->store('research/'.$user->id, 'local');
+
+            $item = ResearchItem::create([
+                'user_id' => $user->id,
+                'type' => $type,
+                'title' => pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME),
+                'user_notes' => $notes,
+                'file_path' => $path,
+                'metadata' => [
+                    'original_name' => $file->getClientOriginalName(),
+                    'mime_type' => $file->getMimeType(),
+                    'size' => $file->getSize(),
+                ],
+            ]);
+
+            AnalyzeResearchItem::dispatch($item);
+            $count++;
+        }
+
+        foreach ($request->parsedUrls() as $url) {
+            $parsed = parse_url($url);
+
+            $item = ResearchItem::create([
+                'user_id' => $user->id,
+                'type' => 'url',
+                'title' => $parsed['host'] ?? 'Web Page',
+                'original_url' => $url,
+                'user_notes' => $notes,
+            ]);
+
+            AnalyzeResearchItem::dispatch($item);
+            $count++;
+        }
+
+        return redirect()->route('research.index')
+            ->with('success', "{$count} items captured! Analysis in progress...");
+    }
+
+    public function update(UpdateResearchItemRequest $request, ResearchItem $item): RedirectResponse
+    {
+        $item->update($request->validated());
+
+        return redirect()->route('research.show', $item)
+            ->with('success', 'Item updated.');
+    }
+
+    public function serveFile(Request $request, ResearchItem $item): StreamedResponse
+    {
+        abort_if($item->user_id !== $request->user()->id, 403);
+        abort_unless($item->file_path && Storage::disk('local')->exists($item->file_path), 404);
+
+        $mime = $item->metadata['mime_type'] ?? 'application/octet-stream';
+        $name = $item->metadata['original_name'] ?? 'file';
+
+        return Storage::disk('local')->response($item->file_path, $name, [
+            'Content-Type' => $mime,
+        ]);
     }
 
     public function destroy(Request $request, ResearchItem $item): RedirectResponse
