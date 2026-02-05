@@ -1,6 +1,7 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { MessageSquare, Plus, Trash2 } from 'lucide-react';
 import { ChatInterface } from '@/components/chat/chat-interface';
+import { FeatureBadge, FeatureBadgeGroup } from '@/components/demo/feature-badge';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import research from '@/routes/research';
@@ -89,6 +90,11 @@ export default function ResearchChat() {
                         </Button>
                     </div>
 
+                    {/* Conversation History Feature Badge */}
+                    <div className="border-b border-border/50 px-4 py-2">
+                        <FeatureBadge feature="conversation" className="w-full justify-center" />
+                    </div>
+
                     <div className="flex-1 overflow-y-auto p-2">
                         {conversations.length === 0 ? (
                             <div className="p-4 text-center text-sm text-muted-foreground">No conversations yet</div>
@@ -126,10 +132,26 @@ export default function ResearchChat() {
                             </div>
                         )}
                     </div>
+
+                    {/* Middleware Feature Badge */}
+                    <div className="border-t border-border/50 px-4 py-3">
+                        <FeatureBadge feature="middleware" className="w-full justify-center" />
+                        <p className="mt-2 text-center text-xs text-muted-foreground">
+                            Messages auto-saved via RememberConversation
+                        </p>
+                    </div>
                 </div>
 
                 {/* Main Chat Area */}
                 <div className="flex flex-1 flex-col">
+                    {/* Feature Badges Header */}
+                    <div className="border-b border-border/50 bg-muted/10 px-4 py-3">
+                        <FeatureBadgeGroup
+                            features={['agent', 'streaming', 'file-search', 'web-search']}
+                            className="justify-center"
+                        />
+                    </div>
+
                     {flash?.success && (
                         <div className="border-b border-green-500/20 bg-green-500/10 px-4 py-2 text-sm text-green-600 dark:text-green-400">
                             {flash.success}
