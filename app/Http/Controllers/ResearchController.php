@@ -34,6 +34,7 @@ class ResearchController extends Controller
             'user_id' => $user->id,
             'type' => $type,
             'title' => $this->generateTitle($request),
+            'user_notes' => $request->validated('notes'),
         ]);
 
         if ($type === 'url') {

@@ -2,13 +2,14 @@
 
 namespace App\Jobs;
 
+use App\Agents\AnalysisAgent;
 use App\Models\ResearchItem;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
-use Laravel\Ai\Ai;
 use Laravel\Ai\Files;
+use Laravel\Ai\Files\LocalImage;
 use Laravel\Ai\Stores;
 
 class AnalyzeResearchItem implements ShouldQueue
@@ -55,23 +56,13 @@ class AnalyzeResearchItem implements ShouldQueue
     {
         $path = Storage::disk('local')->path($this->item->file_path);
         $mimeType = $this->item->metadata['mime_type'] ?? 'image/jpeg';
-        $base64 = base64_encode(file_get_contents($path));
 
-        $agent = Ai::on('openai')->agent(
-            'You are an image analysis assistant. Describe the image in detail, including any text visible. Create a comprehensive summary suitable for search and retrieval.'
-        );
+        $agent = AnalysisAgent::forImage();
 
         $response = $agent->prompt(
             'Analyze this image and provide a detailed description.',
             attachments: [
-                [
-                    'type' => 'image',
-                    'source' => [
-                        'type' => 'base64',
-                        'media_type' => $mimeType,
-                        'data' => $base64,
-                    ],
-                ],
+                new LocalImage($path, $mimeType),
             ]
         );
 
@@ -111,9 +102,7 @@ class AnalyzeResearchItem implements ShouldQueue
             $content = "Failed to fetch URL: {$url}";
         }
 
-        $agent = Ai::on('openai')->agent(
-            'You are a content summarization assistant. Create a concise but comprehensive summary of the webpage content.'
-        );
+        $agent = AnalysisAgent::forUrl();
 
         $response = $agent->prompt(
             "Summarize this webpage content from {$url}:\n\n{$content}"
@@ -132,6 +121,11 @@ class AnalyzeResearchItem implements ShouldQueue
     protected function addToVectorStore(string $content): void
     {
         $user = $this->item->user;
+
+        // Include user notes as additional context for search
+        if ($this->item->user_notes) {
+            $content .= "\n\nUser notes: {$this->item->user_notes}";
+        }
 
         $file = Files::put(
             $content,

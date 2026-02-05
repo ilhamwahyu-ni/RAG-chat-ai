@@ -15,15 +15,17 @@ export function CaptureForm() {
         type: CaptureType;
         file: File | null;
         url: string;
+        notes: string;
     }>({
         type: 'image',
         file: null,
         url: '',
+        notes: '',
     });
 
     const handleTabChange = (type: CaptureType) => {
         setActiveTab(type);
-        setData({ type, file: null, url: '' });
+        setData({ type, file: null, url: '', notes: '' });
     };
 
     const handleFileChange = useCallback(
@@ -177,6 +179,34 @@ export function CaptureForm() {
                 {errors.url && (
                     <p className="mt-2 text-sm text-destructive">
                         {errors.url}
+                    </p>
+                )}
+
+                {/* Notes field */}
+                <div className="mt-4">
+                    <label
+                        htmlFor="notes"
+                        className="mb-2 block text-sm font-medium text-foreground"
+                    >
+                        Notes{' '}
+                        <span className="text-muted-foreground">(optional)</span>
+                    </label>
+                    <textarea
+                        id="notes"
+                        placeholder="Add context or notes about this item..."
+                        value={data.notes}
+                        onChange={(e) => setData('notes', e.target.value)}
+                        rows={3}
+                        className="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 flex w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                    />
+                    <p className="mt-1.5 text-xs text-muted-foreground">
+                        Your notes are included in semantic search for better
+                        retrieval
+                    </p>
+                </div>
+                {errors.notes && (
+                    <p className="mt-2 text-sm text-destructive">
+                        {errors.notes}
                     </p>
                 )}
 

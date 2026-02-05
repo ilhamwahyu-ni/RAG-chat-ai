@@ -21,6 +21,7 @@ class ResearchItem extends Model
         'file_path',
         'provider_file_id',
         'ai_summary',
+        'user_notes',
         'web_research',
         'metadata',
     ];
