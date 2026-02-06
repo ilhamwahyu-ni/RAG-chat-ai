@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 
 beforeEach(function () {
-    Storage::fake('local');
+    Storage::fake();
     Queue::fake();
 });
 
@@ -330,7 +330,7 @@ it('can serve an image file', function () {
     $user = User::factory()->create();
 
     $file = UploadedFile::fake()->image('test.png');
-    $path = $file->store('research/'.$user->id, 'local');
+    $path = $file->store('research/'.$user->id);
 
     $item = ResearchItem::factory()->image()->for($user)->create([
         'file_path' => $path,

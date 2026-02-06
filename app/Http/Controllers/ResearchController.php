@@ -77,7 +77,7 @@ class ResearchController extends Controller
             $item->original_url = $request->validated('url');
         } else {
             $file = $request->file('file');
-            $path = $file->store('research/'.$user->id, 'local');
+            $path = $file->store('research/'.$user->id);
             $item->file_path = $path;
             $item->metadata = [
                 'original_name' => $file->getClientOriginalName(),
@@ -103,7 +103,7 @@ class ResearchController extends Controller
 
         foreach ($request->file('files', []) as $index => $file) {
             $type = str_starts_with($file->getMimeType(), 'image/') ? 'image' : 'document';
-            $path = $file->store('research/'.$user->id, 'local');
+            $path = $file->store('research/'.$user->id);
 
             $item = ResearchItem::create([
                 'user_id' => $user->id,
@@ -152,7 +152,7 @@ class ResearchController extends Controller
         $file = $request->file('file');
 
         $type = str_starts_with($file->getMimeType(), 'image/') ? 'image' : 'document';
-        $path = $file->store('research/'.$user->id, 'local');
+        $path = $file->store('research/'.$user->id);
 
         $metadata = $item->metadata ?? [];
         unset($metadata['fetch_failed'], $metadata['fetch_error']);
@@ -184,12 +184,12 @@ class ResearchController extends Controller
     public function serveFile(Request $request, ResearchItem $item): StreamedResponse
     {
         abort_if($item->user_id !== $request->user()->id, 403);
-        abort_unless($item->file_path && Storage::disk('local')->exists($item->file_path), 404);
+        abort_unless($item->file_path && Storage::disk()->exists($item->file_path), 404);
 
         $mime = $item->metadata['mime_type'] ?? 'application/octet-stream';
         $name = $item->metadata['original_name'] ?? 'file';
 
-        return Storage::disk('local')->response($item->file_path, $name, [
+        return Storage::disk()->response($item->file_path, $name, [
             'Content-Type' => $mime,
         ]);
     }
@@ -201,7 +201,7 @@ class ResearchController extends Controller
         }
 
         if ($item->file_path) {
-            Storage::disk('local')->delete($item->file_path);
+            Storage::disk()->delete($item->file_path);
         }
 
         $item->delete();

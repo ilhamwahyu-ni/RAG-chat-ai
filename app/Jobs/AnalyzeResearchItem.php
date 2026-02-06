@@ -12,10 +12,9 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Storage;
 use Laravel\Ai\Files;
 use Laravel\Ai\Files\Document;
-use Laravel\Ai\Files\LocalImage;
+use Laravel\Ai\Files\Image;
 use Laravel\Ai\Stores;
 
 use function Laravel\Ai\agent;
@@ -77,15 +76,12 @@ class AnalyzeResearchItem implements ShouldQueue
 
     protected function analyzeImage(): void
     {
-        $path = Storage::disk('local')->path($this->item->file_path);
-        $mimeType = $this->item->metadata['mime_type'] ?? 'image/jpeg';
-
         $agent = AnalysisAgent::forImage();
 
         $response = $agent->prompt(
             'Analyze this image and provide a detailed description.',
             attachments: [
-                new LocalImage($path, $mimeType),
+                Image::fromStorage($this->item->file_path),
             ]
         );
 
@@ -103,9 +99,7 @@ class AnalyzeResearchItem implements ShouldQueue
 
     protected function analyzeDocument(): void
     {
-        $path = Storage::disk('local')->path($this->item->file_path);
-
-        $file = Files::putFromPath($path, provider: 'openai');
+        $file = Files::putFromStorage($this->item->file_path, provider: 'openai');
 
         $store = Stores::get($this->item->user->vector_store_id, provider: 'openai');
         $store->add($file);
@@ -114,7 +108,7 @@ class AnalyzeResearchItem implements ShouldQueue
         $response = $agent->prompt(
             'Analyze and summarize this document.',
             attachments: [
-                Document::fromPath($path),
+                Document::fromStorage($this->item->file_path),
             ]
         );
 
