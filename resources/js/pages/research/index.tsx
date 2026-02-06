@@ -23,7 +23,7 @@ interface ResearchItem {
     title: string;
     original_url: string | null;
     ai_summary: string | null;
-    metadata?: { category?: string } | null;
+    metadata?: { category?: string; fetch_failed?: boolean; fetch_error?: string } | null;
     created_at: string;
 }
 

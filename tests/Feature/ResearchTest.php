@@ -5,7 +5,9 @@ use App\Jobs\AnalyzeResearchItem;
 use App\Models\ResearchItem;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 
@@ -144,6 +146,8 @@ it('requires authentication to access research pages', function () {
 // --- Bulk Upload Tests ---
 
 it('can bulk upload multiple files', function () {
+    Bus::fake();
+
     $user = User::factory()->create();
     $files = [
         UploadedFile::fake()->image('photo1.png'),
@@ -162,10 +166,14 @@ it('can bulk upload multiple files', function () {
     expect(ResearchItem::where('user_id', $user->id)->where('type', 'image')->count())->toBe(2);
     expect(ResearchItem::where('user_id', $user->id)->where('type', 'document')->count())->toBe(1);
 
-    Queue::assertPushed(AnalyzeResearchItem::class, 3);
+    Bus::assertBatched(fn ($batch) => $batch->jobs->count() === 3
+        && $batch->jobs->every(fn ($job) => $job instanceof AnalyzeResearchItem)
+    );
 });
 
 it('can bulk upload URLs as array', function () {
+    Bus::fake();
+
     $user = User::factory()->create();
 
     $this->actingAs($user)
@@ -180,7 +188,8 @@ it('can bulk upload URLs as array', function () {
         ->assertSessionHas('success', '3 items captured! Analysis in progress...');
 
     expect(ResearchItem::where('user_id', $user->id)->where('type', 'url')->count())->toBe(3);
-    Queue::assertPushed(AnalyzeResearchItem::class, 3);
+
+    Bus::assertBatched(fn ($batch) => $batch->jobs->count() === 3);
 });
 
 it('requires at least one file or URL for bulk upload', function () {
@@ -192,6 +201,8 @@ it('requires at least one file or URL for bulk upload', function () {
 });
 
 it('applies per-item notes to bulk uploaded files', function () {
+    Bus::fake();
+
     $user = User::factory()->create();
     $files = [
         UploadedFile::fake()->image('photo1.png'),
@@ -211,6 +222,8 @@ it('applies per-item notes to bulk uploaded files', function () {
 });
 
 it('applies per-item notes to bulk uploaded URLs', function () {
+    Bus::fake();
+
     $user = User::factory()->create();
 
     $this->actingAs($user)
@@ -229,6 +242,8 @@ it('applies per-item notes to bulk uploaded URLs', function () {
 });
 
 it('handles missing per-item notes gracefully', function () {
+    Bus::fake();
+
     $user = User::factory()->create();
 
     $this->actingAs($user)
@@ -496,6 +511,140 @@ it('model getCategory returns null when no category', function () {
     expect($item->getCategory())->toBeNull();
 });
 
+// --- Fetch Failure Detection Tests ---
+
+it('detects blocked responses and sets fetch_failed metadata', function () {
+    $user = User::factory()->create(['vector_store_id' => 'vs_test']);
+    $item = ResearchItem::factory()->url()->pending()->for($user)->create([
+        'original_url' => 'https://blocked-site.example.com/article',
+    ]);
+
+    Http::fake([
+        'blocked-site.example.com/*' => Http::response('<html><body>Access Denied</body></html>', 403),
+    ]);
+
+    Event::fake([ResearchItemAnalyzed::class]);
+
+    (new AnalyzeResearchItem($item))->handle();
+
+    $item->refresh();
+    expect($item->metadata['fetch_failed'])->toBeTrue();
+    expect($item->metadata['fetch_error'])->toContain('blocked automated access');
+    expect($item->ai_summary)->toBeNull();
+
+    Event::assertDispatched(ResearchItemAnalyzed::class);
+});
+
+it('detects bot protection in 200 responses with challenge content', function () {
+    $user = User::factory()->create(['vector_store_id' => 'vs_test']);
+    $item = ResearchItem::factory()->url()->pending()->for($user)->create([
+        'original_url' => 'https://protected-site.example.com/page',
+    ]);
+
+    Http::fake([
+        'protected-site.example.com/*' => Http::response(
+            '<html><head><title>Just a moment...</title></head><body>Checking your browser</body></html>',
+            200
+        ),
+    ]);
+
+    Event::fake([ResearchItemAnalyzed::class]);
+
+    (new AnalyzeResearchItem($item))->handle();
+
+    $item->refresh();
+    expect($item->metadata['fetch_failed'])->toBeTrue();
+    expect($item->ai_summary)->toBeNull();
+});
+
+it('marks fetch_failed on connection exceptions', function () {
+    $user = User::factory()->create(['vector_store_id' => 'vs_test']);
+    $item = ResearchItem::factory()->url()->pending()->for($user)->create([
+        'original_url' => 'https://unreachable-site.example.com/page',
+    ]);
+
+    Http::fake([
+        'unreachable-site.example.com/*' => fn () => throw new \Illuminate\Http\Client\ConnectionException('Connection timed out'),
+    ]);
+
+    Event::fake([ResearchItemAnalyzed::class]);
+
+    (new AnalyzeResearchItem($item))->handle();
+
+    $item->refresh();
+    expect($item->metadata['fetch_failed'])->toBeTrue();
+    expect($item->metadata['fetch_error'])->toContain('Could not connect');
+    expect($item->ai_summary)->toBeNull();
+});
+
+// --- Replace With File Tests ---
+
+it('can replace a failed URL item with a file upload', function () {
+    $user = User::factory()->create();
+    $item = ResearchItem::factory()->url()->for($user)->create([
+        'ai_summary' => null,
+        'metadata' => [
+            'fetch_failed' => true,
+            'fetch_error' => 'Bot protection detected',
+        ],
+    ]);
+
+    $file = UploadedFile::fake()->image('screenshot.png');
+
+    $this->actingAs($user)
+        ->post(route('research.replace', $item), ['file' => $file])
+        ->assertRedirect(route('research.show', $item))
+        ->assertSessionHas('success', 'File uploaded! Re-analyzing content...');
+
+    $item->refresh();
+    expect($item->type)->toBe('image');
+    expect($item->file_path)->not->toBeNull();
+    expect($item->ai_summary)->toBeNull();
+    expect($item->metadata['fetch_failed'] ?? null)->toBeNull();
+    expect($item->metadata['original_name'])->toBe('screenshot.png');
+
+    Queue::assertPushed(AnalyzeResearchItem::class, fn ($job) => $job->item->id === $item->id);
+});
+
+it('can replace a failed URL item with a PDF', function () {
+    $user = User::factory()->create();
+    $item = ResearchItem::factory()->url()->for($user)->create([
+        'metadata' => ['fetch_failed' => true, 'fetch_error' => 'Bot protection'],
+    ]);
+
+    $file = UploadedFile::fake()->create('article.pdf', 100, 'application/pdf');
+
+    $this->actingAs($user)
+        ->post(route('research.replace', $item), ['file' => $file])
+        ->assertRedirect(route('research.show', $item));
+
+    $item->refresh();
+    expect($item->type)->toBe('document');
+});
+
+it('cannot replace another users research item', function () {
+    $user = User::factory()->create();
+    $otherUser = User::factory()->create();
+    $item = ResearchItem::factory()->url()->for($otherUser)->create([
+        'metadata' => ['fetch_failed' => true],
+    ]);
+
+    $file = UploadedFile::fake()->image('screenshot.png');
+
+    $this->actingAs($user)
+        ->post(route('research.replace', $item), ['file' => $file])
+        ->assertForbidden();
+});
+
+it('validates file is required for replace', function () {
+    $user = User::factory()->create();
+    $item = ResearchItem::factory()->url()->for($user)->create();
+
+    $this->actingAs($user)
+        ->post(route('research.replace', $item), [])
+        ->assertSessionHasErrors(['file']);
+});
+
 // --- Broadcasting Tests ---
 
 it('broadcasts ResearchItemAnalyzed on the users private channel', function () {
@@ -525,7 +674,27 @@ it('ResearchItemAnalyzed broadcasts with correct payload', function () {
         'title' => 'Test Title',
         'ai_summary' => 'Test Summary',
         'category' => 'technology',
+        'fetch_failed' => false,
+        'fetch_error' => null,
     ]);
+});
+
+it('ResearchItemAnalyzed broadcasts fetch failure info', function () {
+    $user = User::factory()->create();
+    $item = ResearchItem::factory()->for($user)->url()->create([
+        'ai_summary' => null,
+        'metadata' => [
+            'fetch_failed' => true,
+            'fetch_error' => 'Bot protection detected',
+        ],
+    ]);
+
+    $event = new ResearchItemAnalyzed($item);
+    $payload = $event->broadcastWith();
+
+    expect($payload['fetch_failed'])->toBeTrue();
+    expect($payload['fetch_error'])->toBe('Bot protection detected');
+    expect($payload['ai_summary'])->toBeNull();
 });
 
 it('ResearchItemAnalyzed broadcasts on the correct channel', function () {

@@ -1,5 +1,6 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
+    AlertTriangle,
     ArrowLeft,
     Download,
     ExternalLink,
@@ -10,8 +11,9 @@ import {
     Save,
     Tag,
     Trash2,
+    Upload,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +35,8 @@ interface ResearchItem {
         mime_type?: string;
         size?: number;
         category?: string;
+        fetch_failed?: boolean;
+        fetch_error?: string;
     } | null;
     created_at: string;
     updated_at: string;
@@ -77,6 +81,36 @@ export default function ResearchShow() {
     ];
 
     const [isDeleting, setIsDeleting] = useState(false);
+    const fetchFailed = item.metadata?.fetch_failed === true;
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [isDragging, setIsDragging] = useState(false);
+
+    const replaceForm = useForm<{ file: File | null }>({ file: null });
+
+    const handleFileDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(false);
+        const file = e.dataTransfer.files[0];
+        if (file) {
+            replaceForm.setData('file', file);
+        }
+    };
+
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            replaceForm.setData('file', file);
+        }
+    };
+
+    const handleReplace = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!replaceForm.data.file) return;
+
+        replaceForm.post(research.replace(item.id).url, {
+            forceFormData: true,
+        });
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -224,8 +258,82 @@ export default function ResearchShow() {
                             <h2 className="mb-4 text-lg font-semibold text-foreground">
                                 AI Summary
                             </h2>
-                            {item.ai_summary ? (
-                                <div className="prose prose-sm dark:prose-invert max-w-none text-muted-foreground">
+                            {fetchFailed ? (
+                                <div className="space-y-4">
+                                    <div className="flex items-start gap-3 rounded-lg border border-amber-500/20 bg-amber-500/10 p-4">
+                                        <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-500" />
+                                        <div>
+                                            <p className="font-medium text-amber-700 dark:text-amber-400">
+                                                Unable to fetch URL content
+                                            </p>
+                                            <p className="mt-1 text-sm text-amber-600/80 dark:text-amber-400/70">
+                                                {item.metadata?.fetch_error ?? 'The website blocked automated access.'}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <form onSubmit={handleReplace} className="space-y-3">
+                                        <p className="text-sm text-muted-foreground">
+                                            Upload a screenshot or PDF of the page content instead:
+                                        </p>
+                                        <div
+                                            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                                            onDragLeave={() => setIsDragging(false)}
+                                            onDrop={handleFileDrop}
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className={`flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed p-6 transition-colors ${
+                                                isDragging
+                                                    ? 'border-primary bg-primary/5'
+                                                    : 'border-border/50 hover:border-border hover:bg-muted/30'
+                                            }`}
+                                        >
+                                            <Upload className="size-6 text-muted-foreground" />
+                                            {replaceForm.data.file ? (
+                                                <p className="text-sm font-medium text-foreground">
+                                                    {replaceForm.data.file.name}
+                                                </p>
+                                            ) : (
+                                                <p className="text-sm text-muted-foreground">
+                                                    Drop a file here or click to browse
+                                                </p>
+                                            )}
+                                            <p className="text-xs text-muted-foreground/60">
+                                                JPG, PNG, GIF, WebP, or PDF up to 20MB
+                                            </p>
+                                            <input
+                                                ref={fileInputRef}
+                                                type="file"
+                                                onChange={handleFileSelect}
+                                                accept="image/jpeg,image/png,image/gif,image/webp,application/pdf"
+                                                className="hidden"
+                                            />
+                                        </div>
+                                        {replaceForm.errors.file && (
+                                            <p className="text-sm text-destructive">{replaceForm.errors.file}</p>
+                                        )}
+                                        {replaceForm.data.file && (
+                                            <Button
+                                                type="submit"
+                                                disabled={replaceForm.processing}
+                                                className="w-full"
+                                            >
+                                                {replaceForm.processing ? (
+                                                    <>
+                                                        <Loader2 className="size-4 animate-spin" />
+                                                        Uploading...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Upload className="size-4" />
+                                                        Upload &amp; Analyze
+                                                    </>
+                                                )}
+                                            </Button>
+                                        )}
+                                    </form>
+                                </div>
+                            ) : item.ai_summary ? (
+                                <div className="prose prose-sm prose-invert max-w-none text-muted-foreground">
                                     <Markdown remarkPlugins={[remarkGfm]}>
                                         {item.ai_summary}
                                     </Markdown>

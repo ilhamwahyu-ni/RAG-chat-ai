@@ -370,7 +370,7 @@ function MessageBubble({
                                 : 'bg-muted/50 text-foreground',
                         )}
                     >
-                        <div className="prose prose-sm dark:prose-invert max-w-none">
+                        <div className="prose prose-sm prose-invert max-w-none">
                             {isUser ? (
                                 <p className="leading-relaxed">{content}</p>
                             ) : (

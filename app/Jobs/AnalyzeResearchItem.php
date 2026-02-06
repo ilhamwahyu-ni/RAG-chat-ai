@@ -6,9 +6,11 @@ use App\Agents\AnalysisAgent;
 use App\Enums\ResearchCategory;
 use App\Events\ResearchItemAnalyzed;
 use App\Models\ResearchItem;
+use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Ai\Files;
@@ -20,7 +22,7 @@ use function Laravel\Ai\agent;
 
 class AnalyzeResearchItem implements ShouldQueue
 {
-    use Queueable;
+    use Batchable, Queueable;
 
     public int $tries = 3;
 
@@ -32,6 +34,10 @@ class AnalyzeResearchItem implements ShouldQueue
 
     public function handle(): void
     {
+        if ($this->batch()?->cancelled()) {
+            return;
+        }
+
         $user = $this->item->user;
 
         $this->ensureUserHasVectorStore($user);
@@ -52,13 +58,21 @@ class AnalyzeResearchItem implements ShouldQueue
             return;
         }
 
-        $store = Stores::create(
-            name: "user-{$user->id}-research",
-            description: "Personal research knowledge base for user {$user->id}",
-            provider: 'openai'
-        );
+        Cache::lock("vector-store-user-{$user->id}", 30)->block(15, function () use ($user) {
+            $user->refresh();
 
-        $user->update(['vector_store_id' => $store->id]);
+            if ($user->hasVectorStore()) {
+                return;
+            }
+
+            $store = Stores::create(
+                name: "user-{$user->id}-research",
+                description: "Personal research knowledge base for user {$user->id}",
+                provider: 'openai'
+            );
+
+            $user->update(['vector_store_id' => $store->id]);
+        });
     }
 
     protected function analyzeImage(): void
@@ -120,10 +134,20 @@ class AnalyzeResearchItem implements ShouldQueue
         $url = $this->item->original_url;
 
         try {
-            $response = Http::timeout(30)->get($url);
-            $content = $this->extractTextFromHtml($response->body());
+            $httpResponse = Http::timeout(30)->get($url);
+            $body = $httpResponse->body();
+
+            if ($this->isFetchBlocked($httpResponse->status(), $body)) {
+                $this->markFetchFailed('The website blocked automated access (bot protection detected).');
+
+                return;
+            }
+
+            $content = $this->extractTextFromHtml($body);
         } catch (\Exception $e) {
-            $content = "Failed to fetch URL: {$url}";
+            $this->markFetchFailed('Could not connect to the website: '.$e->getMessage());
+
+            return;
         }
 
         $agent = AnalysisAgent::forUrl();
@@ -142,6 +166,49 @@ class AnalyzeResearchItem implements ShouldQueue
         ]);
 
         $this->addToVectorStore("URL: {$url}\n\n{$summary}\n\nOriginal content:\n{$content}");
+    }
+
+    protected function isFetchBlocked(int $status, string $body): bool
+    {
+        if ($status === 403 || $status === 429 || $status === 503) {
+            return true;
+        }
+
+        $stripped = strip_tags($body);
+        $isShortBody = strlen($stripped) < 500;
+
+        $blockedPatterns = [
+            'access denied',
+            'captcha',
+            'challenge-platform',
+            'cf-browser-verification',
+            'enable javascript and cookies',
+            'checking your browser',
+            'just a moment',
+            'akamai',
+            'incapsula',
+            'attention required',
+        ];
+
+        $lowerBody = strtolower($body);
+
+        foreach ($blockedPatterns as $pattern) {
+            if (str_contains($lowerBody, $pattern) && $isShortBody) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function markFetchFailed(string $error): void
+    {
+        $this->item->update([
+            'metadata' => array_merge($this->item->metadata ?? [], [
+                'fetch_failed' => true,
+                'fetch_error' => $error,
+            ]),
+        ]);
     }
 
     protected function categorize(string $content): string

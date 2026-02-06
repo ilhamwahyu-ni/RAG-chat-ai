@@ -28,6 +28,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('research/{item}', [ResearchController::class, 'show'])->name('research.show');
     Route::put('research/{item}', [ResearchController::class, 'update'])->name('research.update');
+    Route::post('research/{item}/replace', [ResearchController::class, 'replaceWithFile'])->name('research.replace');
     Route::get('research/{item}/file', [ResearchController::class, 'serveFile'])->name('research.serve-file');
     Route::delete('research/{item}', [ResearchController::class, 'destroy'])->name('research.destroy');
 });

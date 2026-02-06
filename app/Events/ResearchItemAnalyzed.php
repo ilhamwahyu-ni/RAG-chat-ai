@@ -5,11 +5,11 @@ namespace App\Events;
 use App\Models\ResearchItem;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class ResearchItemAnalyzed implements ShouldBroadcast
+class ResearchItemAnalyzed implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
@@ -37,6 +37,8 @@ class ResearchItemAnalyzed implements ShouldBroadcast
             'title' => $this->item->title,
             'ai_summary' => $this->item->ai_summary,
             'category' => $this->item->metadata['category'] ?? null,
+            'fetch_failed' => $this->item->metadata['fetch_failed'] ?? false,
+            'fetch_error' => $this->item->metadata['fetch_error'] ?? null,
         ];
     }
 }

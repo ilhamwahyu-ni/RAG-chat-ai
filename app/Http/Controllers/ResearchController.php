@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\BulkStoreResearchItemRequest;
+use App\Http\Requests\ReplaceResearchContentRequest;
 use App\Http\Requests\StoreResearchItemRequest;
 use App\Http\Requests\UpdateResearchItemRequest;
 use App\Jobs\AnalyzeResearchItem;
 use App\Models\ResearchItem;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -97,7 +99,7 @@ class ResearchController extends Controller
         $user = $request->user();
         $fileNotes = $request->validated('file_notes', []);
         $urlNotes = $request->validated('url_notes', []);
-        $count = 0;
+        $jobs = [];
 
         foreach ($request->file('files', []) as $index => $file) {
             $type = str_starts_with($file->getMimeType(), 'image/') ? 'image' : 'document';
@@ -116,8 +118,7 @@ class ResearchController extends Controller
                 ],
             ]);
 
-            AnalyzeResearchItem::dispatch($item);
-            $count++;
+            $jobs[] = new AnalyzeResearchItem($item);
         }
 
         foreach ($request->validated('urls', []) as $index => $url) {
@@ -131,12 +132,45 @@ class ResearchController extends Controller
                 'user_notes' => $urlNotes[$index] ?? null,
             ]);
 
-            AnalyzeResearchItem::dispatch($item);
-            $count++;
+            $jobs[] = new AnalyzeResearchItem($item);
+        }
+
+        if ($jobs) {
+            Bus::batch($jobs)
+                ->allowFailures()
+                ->name('research-bulk-upload')
+                ->dispatch();
         }
 
         return redirect()->route('research.index')
-            ->with('success', "{$count} items captured! Analysis in progress...");
+            ->with('success', count($jobs).' items captured! Analysis in progress...');
+    }
+
+    public function replaceWithFile(ReplaceResearchContentRequest $request, ResearchItem $item): RedirectResponse
+    {
+        $user = $request->user();
+        $file = $request->file('file');
+
+        $type = str_starts_with($file->getMimeType(), 'image/') ? 'image' : 'document';
+        $path = $file->store('research/'.$user->id, 'local');
+
+        $metadata = $item->metadata ?? [];
+        unset($metadata['fetch_failed'], $metadata['fetch_error']);
+        $metadata['original_name'] = $file->getClientOriginalName();
+        $metadata['mime_type'] = $file->getMimeType();
+        $metadata['size'] = $file->getSize();
+
+        $item->update([
+            'type' => $type,
+            'file_path' => $path,
+            'ai_summary' => null,
+            'metadata' => $metadata,
+        ]);
+
+        AnalyzeResearchItem::dispatch($item);
+
+        return redirect()->route('research.show', $item)
+            ->with('success', 'File uploaded! Re-analyzing content...');
     }
 
     public function update(UpdateResearchItemRequest $request, ResearchItem $item): RedirectResponse

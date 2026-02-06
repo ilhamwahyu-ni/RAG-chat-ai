@@ -1,5 +1,5 @@
 import { Link, router } from '@inertiajs/react';
-import { FileText, Globe, ImageIcon, Loader2, Tag, Trash2 } from 'lucide-react';
+import { AlertTriangle, FileText, Globe, ImageIcon, Loader2, Tag, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import research from '@/routes/research';
@@ -10,7 +10,7 @@ interface ResearchItem {
     title: string;
     original_url: string | null;
     ai_summary: string | null;
-    metadata?: { category?: string } | null;
+    metadata?: { category?: string; fetch_failed?: boolean; fetch_error?: string } | null;
     created_at: string;
 }
 
@@ -45,7 +45,8 @@ export function ItemCard({ item }: ItemCardProps) {
         url: 'bg-emerald-500/10 text-emerald-500 dark:bg-emerald-500/20',
     };
 
-    const isProcessing = !item.ai_summary;
+    const fetchFailed = item.metadata?.fetch_failed === true;
+    const isProcessing = !item.ai_summary && !fetchFailed;
     const category = item.metadata?.category;
 
     return (
@@ -70,7 +71,14 @@ export function ItemCard({ item }: ItemCardProps) {
                 </h3>
 
                 <div className="mt-3 min-h-[60px]">
-                    {isProcessing ? (
+                    {fetchFailed ? (
+                        <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                            <AlertTriangle className="size-4 shrink-0" />
+                            <span className="text-sm">
+                                Fetch failed — upload a screenshot instead
+                            </span>
+                        </div>
+                    ) : isProcessing ? (
                         <div className="flex items-center gap-2 text-muted-foreground">
                             <Loader2 className="size-4 animate-spin" />
                             <span className="text-sm">
