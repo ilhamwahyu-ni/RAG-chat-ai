@@ -86,12 +86,17 @@ const toolMeta: Record<string, { icon: typeof Search; label: string }> = {
 };
 
 // --- Citation marker cleanup ---
+// OpenAI wraps inline citations with Unicode Private Use Area characters:
+// \ue200 (start) + filecite + \ue202 (separator) + turnXfileY refs + \ue201 (end)
+// The SDK's citation stream events are currently disabled, so we strip markers
+// and rely on the article titles/sources already present in the text.
 
 function stripCitationMarkers(text: string): string {
     return text
+        .replace(/\ue200[^\ue201]*\ue201/g, '') // PUA-wrapped: \ue200filecite...\ue201
         .replace(/\u3010\d+[:\u2020][^\u3011]*\u3011/g, '') // 【4:0†source】
-        .replace(/filecite(turn\d+file\d+)+/g, '') // fileciteturn0file15turn0file16
-        .replace(/\s{2,}/g, ' ')
+        .replace(/filecite(?:\ue202?turn\d+file\d+)+/g, '') // Fallback plain text markers
+        .replace(/ {2,}/g, ' ')
         .trim();
 }
 
@@ -402,7 +407,10 @@ function MessageBubble({
                                 : 'bg-muted/50 text-foreground',
                         )}
                     >
-                        <div className="prose prose-sm prose-invert max-w-none">
+                        <div className={cn(
+                            'prose prose-sm max-w-none',
+                            isUser ? 'prose-invert' : 'dark:prose-invert',
+                        )}>
                             {isUser ? (
                                 <p className="leading-relaxed">{content}</p>
                             ) : (
@@ -705,15 +713,22 @@ export default function ResearchChat() {
                         ) : (
                             <div className="space-y-1">
                                 {localConversations.map((conversation) => (
-                                    <button
+                                    <div
                                         key={conversation.id}
-                                        type="button"
+                                        role="button"
+                                        tabIndex={0}
                                         onClick={() =>
                                             handleSelectConversation(
                                                 conversation.id,
                                             )
                                         }
-                                        className={`group flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors ${
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                e.preventDefault();
+                                                handleSelectConversation(conversation.id);
+                                            }
+                                        }}
+                                        className={`group flex w-full cursor-pointer items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors ${
                                             currentConversation?.id ===
                                             conversation.id
                                                 ? 'bg-primary/10 text-foreground'
@@ -752,7 +767,7 @@ export default function ResearchChat() {
                                         >
                                             <Trash2 className="size-3.5" />
                                         </button>
-                                    </button>
+                                    </div>
                                 ))}
                             </div>
                         )}

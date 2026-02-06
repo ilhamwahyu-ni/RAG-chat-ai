@@ -61,6 +61,8 @@ class ConversationController extends Controller
 
     public function stream(SendMessageRequest $request): StreamableAgentResponse
     {
+        set_time_limit(0);
+
         $user = $request->user();
         $message = $request->validated('message');
         $conversationId = $request->validated('conversation_id');
