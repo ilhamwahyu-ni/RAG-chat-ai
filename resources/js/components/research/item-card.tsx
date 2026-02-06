@@ -87,7 +87,7 @@ export function ItemCard({ item }: ItemCardProps) {
                         </div>
                     ) : (
                         <p className="line-clamp-3 text-sm leading-relaxed text-muted-foreground">
-                            {item.ai_summary}
+                            {item.ai_summary?.replace(/[#*_~`>\[\]()!|-]/g, '')}
                         </p>
                     )}
                 </div>

@@ -1,4 +1,4 @@
-import { Head, InfiniteScroll, router, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useEcho } from '@laravel/echo-react';
 import { ChevronDown, FileText, Globe, ImageIcon, Search, Tag } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -27,12 +27,19 @@ interface ResearchItem {
     created_at: string;
 }
 
+interface PaginationLink {
+    url: string | null;
+    label: string;
+    active: boolean;
+}
+
 interface PaginatedData<T> {
     data: T[];
     current_page: number;
     last_page: number;
     per_page: number;
     total: number;
+    links: PaginationLink[];
 }
 
 interface Stats {
@@ -77,7 +84,7 @@ export default function ResearchIndex() {
             router.get(
                 research.index().url,
                 { search: search || undefined, category: filters.category || undefined },
-                { preserveState: true, replace: true, only: ['items', 'categories'], reset: ['items'] },
+                { preserveState: true, replace: true, only: ['items', 'categories'] },
             );
         }, 300);
 
@@ -96,7 +103,7 @@ export default function ResearchIndex() {
             clearTimeout(reloadRef.current);
         }
         reloadRef.current = setTimeout(() => {
-            router.reload({ only: ['items', 'stats', 'categories'], reset: ['items'] });
+            router.reload({ only: ['items', 'stats', 'categories'] });
         }, 500);
     });
 
@@ -107,7 +114,7 @@ export default function ResearchIndex() {
                 search: filters.search || undefined,
                 category: category || undefined,
             },
-            { preserveState: true, replace: true, only: ['items', 'categories'], reset: ['items'] },
+            { preserveState: true, replace: true, only: ['items', 'categories'] },
         );
     };
 
@@ -233,13 +240,34 @@ export default function ResearchIndex() {
 
                         {/* Items Grid */}
                         {items.data.length > 0 ? (
-                            <InfiniteScroll data="items" preserveUrl>
+                            <div>
                                 <div className="grid gap-4 sm:grid-cols-2">
                                     {items.data.map((item) => (
                                         <ItemCard key={item.id} item={item} />
                                     ))}
                                 </div>
-                            </InfiniteScroll>
+
+                                {/* Pagination */}
+                                {items.last_page > 1 && (
+                                    <nav className="mt-6 flex items-center justify-center gap-1">
+                                        {items.links.map((link, i) => (
+                                            <Link
+                                                key={i}
+                                                href={link.url ?? ''}
+                                                preserveState
+                                                className={`inline-flex h-9 min-w-9 items-center justify-center rounded-md px-3 text-sm transition-colors ${
+                                                    link.active
+                                                        ? 'bg-primary text-primary-foreground'
+                                                        : link.url
+                                                          ? 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
+                                                          : 'pointer-events-none text-muted-foreground/40'
+                                                }`}
+                                                dangerouslySetInnerHTML={{ __html: link.label }}
+                                            />
+                                        ))}
+                                    </nav>
+                                )}
+                            </div>
                         ) : (
                             <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 bg-muted/20 py-16 text-center">
                                 <div className="flex size-14 items-center justify-center rounded-full bg-muted">

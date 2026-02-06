@@ -31,7 +31,7 @@ class ResearchController extends Controller
             ->latest();
 
         return Inertia::render('research/index', [
-            'items' => Inertia::scroll(fn () => $query->paginate(12)->withQueryString()),
+            'items' => fn () => $query->paginate(12)->withQueryString(),
             'filters' => [
                 'search' => $search,
                 'category' => $category,

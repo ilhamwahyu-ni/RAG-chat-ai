@@ -153,7 +153,7 @@ export default function ResearchShow() {
 
                 <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
                     {/* Main Content */}
-                    <div className="space-y-6">
+                    <div className="min-w-0 space-y-6">
                         {/* Header */}
                         <div className="flex items-start gap-4">
                             <div className="flex-1">
@@ -253,53 +253,54 @@ export default function ResearchShow() {
                             </div>
                         )}
 
-                        {/* AI Summary */}
-                        <div className="rounded-xl border border-border/50 bg-card p-6">
-                            <h2 className="mb-4 text-lg font-semibold text-foreground">
-                                AI Summary
-                            </h2>
-                            {fetchFailed ? (
-                                <div className="space-y-4">
-                                    <div className="flex items-start gap-3 rounded-lg border border-amber-500/20 bg-amber-500/10 p-4">
-                                        <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-500" />
-                                        <div>
-                                            <p className="font-medium text-amber-700 dark:text-amber-400">
-                                                Unable to fetch URL content
-                                            </p>
-                                            <p className="mt-1 text-sm text-amber-600/80 dark:text-amber-400/70">
-                                                {item.metadata?.fetch_error ?? 'The website blocked automated access.'}
-                                            </p>
-                                        </div>
+                        {/* Fetch Failed State */}
+                        {fetchFailed && (
+                            <div className="rounded-xl border-2 border-amber-500/30 bg-amber-500/5 p-6">
+                                <div className="flex items-start gap-4">
+                                    <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-amber-500/15">
+                                        <AlertTriangle className="size-6 text-amber-500" />
                                     </div>
-
-                                    <form onSubmit={handleReplace} className="space-y-3">
-                                        <p className="text-sm text-muted-foreground">
-                                            Upload a screenshot or PDF of the page content instead:
+                                    <div>
+                                        <h2 className="text-lg font-semibold text-amber-700 dark:text-amber-400">
+                                            Fetch Failed
+                                        </h2>
+                                        <p className="mt-1 text-sm text-amber-600/80 dark:text-amber-400/60">
+                                            {item.metadata?.fetch_error ?? 'The website blocked automated access (bot protection detected).'}
                                         </p>
+                                    </div>
+                                </div>
+
+                                <div className="mt-6 space-y-3">
+                                    <p className="text-sm font-medium text-foreground">
+                                        Upload a screenshot or save the page as PDF:
+                                    </p>
+                                    <form onSubmit={handleReplace} className="space-y-3">
                                         <div
                                             onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                                             onDragLeave={() => setIsDragging(false)}
                                             onDrop={handleFileDrop}
                                             onClick={() => fileInputRef.current?.click()}
-                                            className={`flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed p-6 transition-colors ${
+                                            className={`flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed p-8 transition-colors ${
                                                 isDragging
                                                     ? 'border-primary bg-primary/5'
-                                                    : 'border-border/50 hover:border-border hover:bg-muted/30'
+                                                    : 'border-amber-500/20 bg-background/50 hover:border-amber-500/40 hover:bg-background/80'
                                             }`}
                                         >
-                                            <Upload className="size-6 text-muted-foreground" />
+                                            <Upload className="size-8 text-amber-500/60" />
                                             {replaceForm.data.file ? (
                                                 <p className="text-sm font-medium text-foreground">
                                                     {replaceForm.data.file.name}
                                                 </p>
                                             ) : (
-                                                <p className="text-sm text-muted-foreground">
-                                                    Drop a file here or click to browse
-                                                </p>
+                                                <>
+                                                    <p className="text-sm font-medium text-foreground">
+                                                        Drop a file here or click to browse
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        JPG, PNG, GIF, WebP, or PDF up to 20MB
+                                                    </p>
+                                                </>
                                             )}
-                                            <p className="text-xs text-muted-foreground/60">
-                                                JPG, PNG, GIF, WebP, or PDF up to 20MB
-                                            </p>
                                             <input
                                                 ref={fileInputRef}
                                                 type="file"
@@ -332,21 +333,31 @@ export default function ResearchShow() {
                                         )}
                                     </form>
                                 </div>
-                            ) : item.ai_summary ? (
-                                <div className="prose prose-sm prose-invert max-w-none text-muted-foreground">
-                                    <Markdown remarkPlugins={[remarkGfm]}>
-                                        {item.ai_summary}
-                                    </Markdown>
-                                </div>
-                            ) : (
-                                <div className="flex items-center gap-2 text-muted-foreground">
-                                    <Loader2 className="size-4 animate-spin" />
-                                    <span className="text-sm">
-                                        Analysis in progress...
-                                    </span>
-                                </div>
-                            )}
-                        </div>
+                            </div>
+                        )}
+
+                        {/* AI Summary */}
+                        {!fetchFailed && (
+                            <div className="rounded-xl border border-border/50 bg-card p-6">
+                                <h2 className="mb-4 text-lg font-semibold text-foreground">
+                                    AI Summary
+                                </h2>
+                                {item.ai_summary ? (
+                                    <div className="prose prose-sm prose-invert max-w-none text-muted-foreground">
+                                        <Markdown remarkPlugins={[remarkGfm]}>
+                                            {item.ai_summary}
+                                        </Markdown>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2 text-muted-foreground">
+                                        <Loader2 className="size-4 animate-spin" />
+                                        <span className="text-sm">
+                                            Analysis in progress...
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* Sidebar - Edit Form */}

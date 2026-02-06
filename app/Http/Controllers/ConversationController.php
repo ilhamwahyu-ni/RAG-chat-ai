@@ -46,10 +46,16 @@ class ConversationController extends Controller
             }
         }
 
+        $fileMap = $user->researchItems()
+            ->whereNotNull('provider_file_id')
+            ->pluck('id', 'provider_file_id')
+            ->toArray();
+
         return Inertia::render('research/chat', [
             'conversations' => $conversations,
             'currentConversation' => $currentConversation,
             'messages' => $messages,
+            'fileMap' => $fileMap,
         ]);
     }
 

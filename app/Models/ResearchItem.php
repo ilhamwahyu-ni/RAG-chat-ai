@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Schema;
 
 class ResearchItem extends Model
 {
@@ -99,11 +100,20 @@ class ResearchItem extends Model
             return;
         }
 
-        $query->where(function (Builder $q) use ($search) {
-            $q->where('title', 'like', "%{$search}%")
-                ->orWhere('ai_summary', 'like', "%{$search}%")
-                ->orWhere('user_notes', 'like', "%{$search}%")
-                ->orWhere('metadata->category', 'like', "%{$search}%");
-        });
+        $driver = Schema::getConnection()->getDriverName();
+
+        if (in_array($driver, ['pgsql', 'mysql', 'mariadb'])) {
+            $query->where(function (Builder $q) use ($search) {
+                $q->whereFullText(['title', 'ai_summary', 'user_notes'], $search)
+                    ->orWhere('metadata->category', 'like', "%{$search}%");
+            });
+        } else {
+            $query->where(function (Builder $q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                    ->orWhere('ai_summary', 'like', "%{$search}%")
+                    ->orWhere('user_notes', 'like', "%{$search}%")
+                    ->orWhere('metadata->category', 'like', "%{$search}%");
+            });
+        }
     }
 }

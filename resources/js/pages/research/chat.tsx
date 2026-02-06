@@ -1,4 +1,4 @@
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useStream } from '@laravel/stream-react';
 import {
     Bot,
@@ -55,6 +55,7 @@ interface PageProps {
     conversations: Conversation[];
     currentConversation: Conversation | null;
     messages: Message[];
+    fileMap: Record<string, string>;
     flash?: { success?: string };
 }
 
@@ -68,6 +69,7 @@ interface ToolActivity {
 interface Citation {
     title: string;
     url: string;
+    itemId?: string;
 }
 
 interface ParsedStream {
@@ -83,9 +85,19 @@ const toolMeta: Record<string, { icon: typeof Search; label: string }> = {
     web_search: { icon: Globe, label: 'Web Search' },
 };
 
+// --- Citation marker cleanup ---
+
+function stripCitationMarkers(text: string): string {
+    return text
+        .replace(/\u3010\d+[:\u2020][^\u3011]*\u3011/g, '') // 【4:0†source】
+        .replace(/filecite(turn\d+file\d+)+/g, '') // fileciteturn0file15turn0file16
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+}
+
 // --- SSE Parser ---
 
-function parseStreamEvents(raw: string): ParsedStream {
+function parseStreamEvents(raw: string, fileMap?: Record<string, string>): ParsedStream {
     let text = '';
     const toolMap = new Map<string, ToolActivity>();
     const citations: Citation[] = [];
@@ -134,6 +146,15 @@ function parseStreamEvents(raw: string): ParsedStream {
                                 url: event.citation.url,
                             });
                         }
+                    } else if (event.citation?.file_id && fileMap) {
+                        const itemId = fileMap[event.citation.file_id];
+                        if (itemId && !citations.some((c) => c.itemId === itemId)) {
+                            citations.push({
+                                title: event.citation.filename || 'Research item',
+                                url: `/research/${itemId}`,
+                                itemId,
+                            });
+                        }
                     }
                     break;
 
@@ -175,7 +196,7 @@ function parseStreamEvents(raw: string): ParsedStream {
         }
     }
 
-    return { text, tools: Array.from(toolMap.values()), citations };
+    return { text: stripCitationMarkers(text), tools: Array.from(toolMap.values()), citations };
 }
 
 function parseToolCalls(toolCallsJson: string): ToolActivity[] {
@@ -290,18 +311,29 @@ function CitationList({ citations }: { citations: Citation[] }) {
 
     return (
         <div className="flex flex-wrap gap-1.5 pt-1">
-            {citations.map((citation) => (
-                <a
-                    key={citation.url}
-                    href={citation.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 rounded-md border border-border/50 bg-background px-2 py-1 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground"
-                >
-                    <ExternalLink className="size-3" />
-                    {citation.title}
-                </a>
-            ))}
+            {citations.map((citation) =>
+                citation.itemId ? (
+                    <Link
+                        key={citation.url}
+                        href={citation.url}
+                        className="inline-flex items-center gap-1 rounded-md border border-violet-500/30 bg-violet-500/10 px-2 py-1 text-xs text-violet-600 transition-colors hover:border-violet-500/50 hover:text-violet-500 dark:text-violet-400"
+                    >
+                        <Search className="size-3" />
+                        {citation.title}
+                    </Link>
+                ) : (
+                    <a
+                        key={citation.url}
+                        href={citation.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 rounded-md border border-border/50 bg-background px-2 py-1 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground"
+                    >
+                        <ExternalLink className="size-3" />
+                        {citation.title}
+                    </a>
+                ),
+            )}
         </div>
     );
 }
@@ -437,7 +469,7 @@ function useRotatingSuggestions(groupSize = 3, intervalMs = 6000) {
 // --- Main Page ---
 
 export default function ResearchChat() {
-    const { conversations, currentConversation, messages, flash } =
+    const { conversations, currentConversation, messages, fileMap, flash } =
         usePage<PageProps>().props;
 
     const [localConversations, setLocalConversations] =
@@ -458,7 +490,7 @@ export default function ResearchChat() {
         messages.map((m) => ({
             id: m.id,
             role: m.role,
-            content: m.content,
+            content: m.role === 'assistant' ? stripCitationMarkers(m.content) : m.content,
         })),
     );
 
@@ -502,7 +534,7 @@ export default function ResearchChat() {
                                 props.messages.map((m) => ({
                                     id: m.id,
                                     role: m.role,
-                                    content: m.content,
+                                    content: m.role === 'assistant' ? stripCitationMarkers(m.content) : m.content,
                                 })),
                             );
                             if (
@@ -541,15 +573,15 @@ export default function ResearchChat() {
             messages.map((m) => ({
                 id: m.id,
                 role: m.role,
-                content: m.content,
+                content: m.role === 'assistant' ? stripCitationMarkers(m.content) : m.content,
             })),
         );
     }, [messages]);
 
     // Parse SSE events from the accumulated stream data
     const streamParsed = useMemo(
-        () => (data ? parseStreamEvents(data) : null),
-        [data],
+        () => (data ? parseStreamEvents(data, fileMap) : null),
+        [data, fileMap],
     );
 
     // Scroll to bottom when messages or streaming data change
