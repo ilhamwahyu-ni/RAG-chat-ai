@@ -407,10 +407,7 @@ function MessageBubble({
                                 : 'bg-muted/50 text-foreground',
                         )}
                     >
-                        <div className={cn(
-                            'prose prose-sm max-w-none',
-                            isUser ? 'prose-invert' : 'dark:prose-invert',
-                        )}>
+                        <div className="prose prose-sm prose-invert max-w-none">
                             {isUser ? (
                                 <p className="leading-relaxed">{content}</p>
                             ) : (
