@@ -11,7 +11,6 @@ use App\Models\ResearchItem;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Bus;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -44,10 +43,10 @@ class ResearchController extends Controller
             ],
             'categories' => Inertia::lazy(fn () => $request->user()
                 ->researchItems()
-                ->select(DB::raw("json_extract(metadata, '$.category') as category"), DB::raw('count(*) as count'))
-                ->whereNotNull(DB::raw("json_extract(metadata, '$.category')"))
-                ->groupBy('category')
-                ->pluck('count', 'category')
+                ->whereNotNull('metadata->category')
+                ->get()
+                ->pluck('metadata.category')
+                ->countBy()
                 ->toArray()),
         ]);
     }
