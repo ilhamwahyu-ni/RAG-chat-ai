@@ -50,7 +50,7 @@ class ResearchAgent implements Agent, Conversational, HasTools
         $tools = [];
 
         if ($this->user->hasVectorStore()) {
-            $tools[] = new FileSearch([$this->user->vector_store_id]);
+            $tools[] = new FileSearch(stores: [$this->user->vector_store_id]);
         }
 
         $tools[] = new WebSearch;

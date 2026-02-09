@@ -30,8 +30,9 @@ import {
     CollapsibleContent,
     CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { cn } from '@/lib/utils';
+import { useHints } from '@/hooks/use-hints';
 import AppLayout from '@/layouts/app-layout';
+import { cn } from '@/lib/utils';
 import research from '@/routes/research';
 
 // --- Types ---
@@ -102,7 +103,10 @@ function stripCitationMarkers(text: string): string {
 
 // --- SSE Parser ---
 
-function parseStreamEvents(raw: string, fileMap?: Record<string, string>): ParsedStream {
+function parseStreamEvents(
+    raw: string,
+    fileMap?: Record<string, string>,
+): ParsedStream {
     let text = '';
     const toolMap = new Map<string, ToolActivity>();
     const citations: Citation[] = [];
@@ -153,9 +157,13 @@ function parseStreamEvents(raw: string, fileMap?: Record<string, string>): Parse
                         }
                     } else if (event.citation?.file_id && fileMap) {
                         const itemId = fileMap[event.citation.file_id];
-                        if (itemId && !citations.some((c) => c.itemId === itemId)) {
+                        if (
+                            itemId &&
+                            !citations.some((c) => c.itemId === itemId)
+                        ) {
                             citations.push({
-                                title: event.citation.filename || 'Research item',
+                                title:
+                                    event.citation.filename || 'Research item',
                                 url: `/research/${itemId}`,
                                 itemId,
                             });
@@ -201,7 +209,11 @@ function parseStreamEvents(raw: string, fileMap?: Record<string, string>): Parse
         }
     }
 
-    return { text: stripCitationMarkers(text), tools: Array.from(toolMap.values()), citations };
+    return {
+        text: stripCitationMarkers(text),
+        tools: Array.from(toolMap.values()),
+        citations,
+    };
 }
 
 function parseToolCalls(toolCallsJson: string): ToolActivity[] {
@@ -299,7 +311,7 @@ function ToolCallCard({
             {hasResult && (
                 <CollapsibleContent>
                     <div className="mt-1 rounded-lg border border-border/30 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-                        <pre className="max-h-32 overflow-auto whitespace-pre-wrap font-mono">
+                        <pre className="max-h-32 overflow-auto font-mono whitespace-pre-wrap">
                             {tool.result!.length > 500
                                 ? tool.result!.slice(0, 500) + '...'
                                 : tool.result}
@@ -407,7 +419,7 @@ function MessageBubble({
                                 : 'bg-muted/50 text-foreground',
                         )}
                     >
-                        <div className="prose prose-sm prose-invert max-w-none">
+                        <div className="prose prose-sm max-w-none prose-invert">
                             {isUser ? (
                                 <p className="leading-relaxed">{content}</p>
                             ) : (
@@ -476,6 +488,7 @@ function useRotatingSuggestions(groupSize = 3, intervalMs = 6000) {
 export default function ResearchChat() {
     const { conversations, currentConversation, messages, fileMap, flash } =
         usePage<PageProps>().props;
+    const { hintsEnabled } = useHints();
 
     const [localConversations, setLocalConversations] =
         useState<Conversation[]>(conversations);
@@ -495,7 +508,10 @@ export default function ResearchChat() {
         messages.map((m) => ({
             id: m.id,
             role: m.role,
-            content: m.role === 'assistant' ? stripCitationMarkers(m.content) : m.content,
+            content:
+                m.role === 'assistant'
+                    ? stripCitationMarkers(m.content)
+                    : m.content,
         })),
     );
 
@@ -539,7 +555,10 @@ export default function ResearchChat() {
                                 props.messages.map((m) => ({
                                     id: m.id,
                                     role: m.role,
-                                    content: m.role === 'assistant' ? stripCitationMarkers(m.content) : m.content,
+                                    content:
+                                        m.role === 'assistant'
+                                            ? stripCitationMarkers(m.content)
+                                            : m.content,
                                 })),
                             );
                             if (
@@ -578,7 +597,10 @@ export default function ResearchChat() {
             messages.map((m) => ({
                 id: m.id,
                 role: m.role,
-                content: m.role === 'assistant' ? stripCitationMarkers(m.content) : m.content,
+                content:
+                    m.role === 'assistant'
+                        ? stripCitationMarkers(m.content)
+                        : m.content,
             })),
         );
     }, [messages]);
@@ -695,12 +717,14 @@ export default function ResearchChat() {
                         </Button>
                     </div>
 
-                    <div className="border-b border-border/50 px-4 py-2">
-                        <FeatureBadge
-                            feature="conversation"
-                            className="w-full justify-center"
-                        />
-                    </div>
+                    {hintsEnabled && (
+                        <div className="border-b border-border/50 px-4 py-2">
+                            <FeatureBadge
+                                feature="conversation"
+                                className="w-full justify-center"
+                            />
+                        </div>
+                    )}
 
                     <div className="flex-1 overflow-y-auto p-2">
                         {localConversations.length === 0 ? (
@@ -720,9 +744,14 @@ export default function ResearchChat() {
                                             )
                                         }
                                         onKeyDown={(e) => {
-                                            if (e.key === 'Enter' || e.key === ' ') {
+                                            if (
+                                                e.key === 'Enter' ||
+                                                e.key === ' '
+                                            ) {
                                                 e.preventDefault();
-                                                handleSelectConversation(conversation.id);
+                                                handleSelectConversation(
+                                                    conversation.id,
+                                                );
                                             }
                                         }}
                                         className={`group flex w-full cursor-pointer items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors ${
@@ -770,31 +799,35 @@ export default function ResearchChat() {
                         )}
                     </div>
 
-                    <div className="border-t border-border/50 px-4 py-3">
-                        <FeatureBadge
-                            feature="middleware"
-                            className="w-full justify-center"
-                        />
-                        <p className="mt-2 text-center text-xs text-muted-foreground">
-                            Messages auto-saved via RememberConversation
-                        </p>
-                    </div>
+                    {hintsEnabled && (
+                        <div className="border-t border-border/50 px-4 py-3">
+                            <FeatureBadge
+                                feature="conversation"
+                                className="w-full justify-center"
+                            />
+                            <p className="mt-2 text-center text-xs text-muted-foreground">
+                                Messages auto-saved via RemembersConversations
+                            </p>
+                        </div>
+                    )}
                 </div>
 
                 {/* Main Chat Area */}
                 <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
                     {/* Feature Badges Header */}
-                    <div className="shrink-0 border-b border-border/50 bg-muted/10 px-4 py-3">
-                        <FeatureBadgeGroup
-                            features={[
-                                'agent',
-                                'streaming',
-                                'file-search',
-                                'web-search',
-                            ]}
-                            className="justify-center"
-                        />
-                    </div>
+                    {hintsEnabled && (
+                        <div className="shrink-0 border-b border-border/50 bg-muted/10 px-4 py-3">
+                            <FeatureBadgeGroup
+                                features={[
+                                    'agent',
+                                    'streaming',
+                                    'file-search',
+                                    'web-search',
+                                ]}
+                                className="justify-center"
+                            />
+                        </div>
+                    )}
 
                     {flash?.success && (
                         <div className="border-b border-green-500/20 bg-green-500/10 px-4 py-2 text-sm text-green-600 dark:text-green-400">
@@ -827,9 +860,7 @@ export default function ResearchChat() {
                                         <button
                                             key={suggestion}
                                             type="button"
-                                            onClick={() =>
-                                                setInput(suggestion)
-                                            }
+                                            onClick={() => setInput(suggestion)}
                                             className="rounded-full border border-border/50 bg-muted/30 px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground"
                                         >
                                             {suggestion}
@@ -844,9 +875,7 @@ export default function ResearchChat() {
                                         (m) => m.id === message.id,
                                     );
                                     const msgTools = serverMsg
-                                        ? parseToolCalls(
-                                              serverMsg.tool_calls,
-                                          )
+                                        ? parseToolCalls(serverMsg.tool_calls)
                                         : [];
 
                                     return (
@@ -955,9 +984,11 @@ export default function ResearchChat() {
                                     )}
                                 </Button>
                             </div>
-                            <p className="mt-2 text-center text-xs text-muted-foreground">
-                                AI searches your knowledge base and the web
-                            </p>
+                            {hintsEnabled && (
+                                <p className="mt-2 text-center text-xs text-muted-foreground">
+                                    AI searches your knowledge base and the web
+                                </p>
+                            )}
                         </form>
                     </div>
                 </div>

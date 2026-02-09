@@ -13,6 +13,7 @@ import {
     CollapsibleContent,
     CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { useHints } from '@/hooks/use-hints';
 import AppLayout from '@/layouts/app-layout';
 import research from '@/routes/research';
 import type { BreadcrumbItem, SharedData } from '@/types';
@@ -67,6 +68,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 export default function ResearchIndex() {
     const { items, filters, stats, categories, flash } = usePage<PageProps>().props;
     const { auth } = usePage<SharedData>().props;
+    const { hintsEnabled } = useHints();
     const [search, setSearch] = useState(filters.search);
     const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
 
@@ -155,11 +157,13 @@ export default function ResearchIndex() {
                             </div>
 
                             {/* Feature Badges */}
-                            <div className="mt-4">
-                                <FeatureBadgeGroup
-                                    features={['vector-store', 'vision', 'broadcasting', 'categorization']}
-                                />
-                            </div>
+                            {hintsEnabled && (
+                                <div className="mt-4">
+                                    <FeatureBadgeGroup
+                                        features={['vector-store', 'vision', 'broadcasting', 'categorization']}
+                                    />
+                                </div>
+                            )}
                         </div>
 
                         {/* Stats (collapsible) */}
@@ -296,58 +300,60 @@ export default function ResearchIndex() {
                         </div>
 
                         {/* How it works */}
-                        <div className="mb-4 rounded-lg border border-border/50 bg-muted/20 p-4">
-                            <h3 className="text-sm font-medium text-foreground">
-                                How it works
-                            </h3>
-                            <ol className="mt-2 space-y-2 text-sm text-muted-foreground">
-                                <li className="flex items-start gap-2">
-                                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-medium text-primary">
-                                        1
-                                    </span>
-                                    <span>
-                                        Upload an image, document, or paste a
-                                        URL
-                                    </span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-medium text-primary">
-                                        2
-                                    </span>
-                                    <span>
-                                        AI analyzes content using{' '}
-                                        <FeatureBadge
-                                            feature="vision"
-                                            className="inline-flex align-middle"
-                                        />
-                                    </span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-medium text-primary">
-                                        3
-                                    </span>
-                                    <span>
-                                        Stored in{' '}
-                                        <FeatureBadge
-                                            feature="vector-store"
-                                            className="inline-flex align-middle"
-                                        />
-                                    </span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-medium text-primary">
-                                        4
-                                    </span>
-                                    <span>
-                                        Query via{' '}
-                                        <FeatureBadge
-                                            feature="file-search"
-                                            className="inline-flex align-middle"
-                                        />
-                                    </span>
-                                </li>
-                            </ol>
-                        </div>
+                        {hintsEnabled && (
+                            <div className="mb-4 rounded-lg border border-border/50 bg-muted/20 p-4">
+                                <h3 className="text-sm font-medium text-foreground">
+                                    How it works
+                                </h3>
+                                <ol className="mt-2 space-y-2 text-sm text-muted-foreground">
+                                    <li className="flex items-start gap-2">
+                                        <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-medium text-primary">
+                                            1
+                                        </span>
+                                        <span>
+                                            Upload an image, document, or paste
+                                            a URL
+                                        </span>
+                                    </li>
+                                    <li className="flex items-start gap-2">
+                                        <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-medium text-primary">
+                                            2
+                                        </span>
+                                        <span>
+                                            AI analyzes content using{' '}
+                                            <FeatureBadge
+                                                feature="vision"
+                                                className="inline-flex align-middle"
+                                            />
+                                        </span>
+                                    </li>
+                                    <li className="flex items-start gap-2">
+                                        <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-medium text-primary">
+                                            3
+                                        </span>
+                                        <span>
+                                            Stored in{' '}
+                                            <FeatureBadge
+                                                feature="vector-store"
+                                                className="inline-flex align-middle"
+                                            />
+                                        </span>
+                                    </li>
+                                    <li className="flex items-start gap-2">
+                                        <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-medium text-primary">
+                                            4
+                                        </span>
+                                        <span>
+                                            Query via{' '}
+                                            <FeatureBadge
+                                                feature="file-search"
+                                                className="inline-flex align-middle"
+                                            />
+                                        </span>
+                                    </li>
+                                </ol>
+                            </div>
+                        )}
 
                         <CaptureForm />
                     </div>

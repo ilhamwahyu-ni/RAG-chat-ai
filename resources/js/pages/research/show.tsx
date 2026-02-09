@@ -18,6 +18,7 @@ import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useHints } from '@/hooks/use-hints';
 import AppLayout from '@/layouts/app-layout';
 import research from '@/routes/research';
 import type { BreadcrumbItem } from '@/types';
@@ -67,6 +68,7 @@ const typeConfig = {
 
 export default function ResearchShow() {
     const { item, flash } = usePage<PageProps>().props;
+    const { hintsEnabled } = useHints();
     const config = typeConfig[item.type];
     const Icon = config.icon;
 
@@ -416,9 +418,11 @@ export default function ResearchShow() {
                                         {errors.user_notes}
                                     </p>
                                 )}
-                                <p className="mt-1.5 text-xs text-muted-foreground">
-                                    Notes are included in semantic search
-                                </p>
+                                {hintsEnabled && (
+                                    <p className="mt-1.5 text-xs text-muted-foreground">
+                                        Notes are included in semantic search
+                                    </p>
+                                )}
                             </div>
 
                             <Button

@@ -2,6 +2,7 @@ import { useForm } from '@inertiajs/react';
 import { FileText, Globe, Loader2, MessageSquare, Upload, X } from 'lucide-react';
 import { useCallback, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { useHints } from '@/hooks/use-hints';
 import research from '@/routes/research';
 
 type CaptureTab = 'files' | 'urls';
@@ -16,6 +17,7 @@ function isValidUrl(str: string): boolean {
 }
 
 export function CaptureForm() {
+    const { hintsEnabled } = useHints();
     const [activeTab, setActiveTab] = useState<CaptureTab>('files');
     const [isDragOver, setIsDragOver] = useState(false);
     const [expandedFileNotes, setExpandedFileNotes] = useState<Set<number>>(new Set());
@@ -263,10 +265,12 @@ export function CaptureForm() {
                                     <p className="font-medium text-foreground">
                                         Drop files here or click to browse
                                     </p>
-                                    <p className="text-sm text-muted-foreground">
-                                        Images, PDFs, DOC, TXT up to 20MB each
-                                        (max 20 files)
-                                    </p>
+                                    {hintsEnabled && (
+                                        <p className="text-sm text-muted-foreground">
+                                            Images, PDFs, DOC, TXT up to 20MB
+                                            each (max 20 files)
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -340,9 +344,12 @@ export function CaptureForm() {
                                 className="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 flex w-full rounded-md border bg-transparent py-2 pr-3 pl-10 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
                             />
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                            Paste multiple URLs at once or type one and press Enter
-                        </p>
+                        {hintsEnabled && (
+                            <p className="text-xs text-muted-foreground">
+                                Paste multiple URLs at once or type one and
+                                press Enter
+                            </p>
+                        )}
 
                         {/* Parsed URL list with per-item notes */}
                         {data.urls.length > 0 && (

@@ -13,7 +13,6 @@ export type FeatureType =
     | 'web-search'
     | 'vector-store'
     | 'conversation'
-    | 'middleware'
     | 'vision'
     | 'broadcasting'
     | 'categorization';
@@ -32,18 +31,25 @@ const featureDetails: Record<FeatureType, FeatureInfo> = {
     streaming: {
         label: 'Streaming',
         description:
-            'Return StreamableAgentResponse directly - Laravel handles SSE headers, buffering, and the [DONE] signal.',
+            'Returning a StreamableAgentResponse streams tokens over SSE, with Laravel handling headers and buffering.',
         file: 'app/Http/Controllers/ConversationController.php',
-        lineRange: '50-73',
-        code: `public function message(SendMessageRequest $request): StreamableAgentResponse
+        lineRange: '62-79',
+        code: `public function stream(SendMessageRequest $request): StreamableAgentResponse
 {
-    $agent = new ResearchAgent($request->user());
+    $user = $request->user();
+    $conversationId = $request->validated('conversation_id');
+    $message = $request->validated('message');
 
-    $conversationId
-        ? $agent->continue($conversationId, $request->user())
-        : $agent->forUser($request->user());
+    $agent = new ResearchAgent($user);
 
-    return $agent->stream($request->validated('message'));
+    if ($conversationId) {
+        $this->authorizeConversation($conversationId, $user->id);
+        $agent->continue($conversationId, as: $user);
+    } else {
+        $agent->forUser($user);
+    }
+
+    return $agent->stream($message);
 }`,
     },
     agent: {
@@ -51,10 +57,10 @@ const featureDetails: Record<FeatureType, FeatureInfo> = {
         description:
             'Agents implement interfaces defining their behavior. Attributes configure provider and temperature.',
         file: 'app/Agents/ResearchAgent.php',
-        lineRange: '19-28',
+        lineRange: '17-26',
         code: `#[Provider('openai')]
 #[Temperature(0.7)]
-class ResearchAgent implements Agent, Conversational, HasMiddleware, HasTools
+class ResearchAgent implements Agent, Conversational, HasTools
 {
     use Promptable;
     use RemembersConversations;
@@ -65,15 +71,15 @@ class ResearchAgent implements Agent, Conversational, HasMiddleware, HasTools
     'file-search': {
         label: 'FileSearch',
         description:
-            "OpenAI's semantic search over your vector store. AI decides when to search based on the query.",
+            'Semantic search over vector store files. The agent decides when to retrieve relevant chunks.',
         file: 'app/Agents/ResearchAgent.php',
-        lineRange: '57-70',
+        lineRange: '45-57',
         code: `public function tools(): iterable
 {
     $tools = [];
 
     if ($this->user->hasVectorStore()) {
-        $tools[] = new FileSearch([$this->user->vector_store_id]);
+        $tools[] = new FileSearch(stores: [$this->user->vector_store_id]);
     }
 
     $tools[] = new WebSearch;
@@ -86,7 +92,7 @@ class ResearchAgent implements Agent, Conversational, HasMiddleware, HasTools
         description:
             'AI-powered web search. The agent autonomously searches when it needs current information.',
         file: 'app/Agents/ResearchAgent.php',
-        lineRange: '68',
+        lineRange: '56',
         code: `$tools[] = new WebSearch;`,
     },
     'vector-store': {
@@ -94,60 +100,50 @@ class ResearchAgent implements Agent, Conversational, HasMiddleware, HasTools
         description:
             "OpenAI's managed vector storage. Files are auto-chunked, embedded, and indexed. No pgvector needed.",
         file: 'app/Jobs/AnalyzeResearchItem.php',
-        lineRange: '45-52',
-        code: `protected function ensureUserHasVectorStore(): void
+        lineRange: '54-74',
+        code: `protected function ensureUserHasVectorStore($user): void
 {
-    if (! $this->user->hasVectorStore()) {
-        $store = Stores::create("user-{$this->user->id}-research");
-        $this->user->update(['vector_store_id' => $store->id]);
+    if (! $user->hasVectorStore()) {
+        $store = Stores::create("user-{$user->id}-research");
+        $user->update(['vector_store_id' => $store->id]);
     }
 }`,
     },
     conversation: {
         label: 'Conversational',
         description:
-            'RemembersConversations trait loads message history. Use continue() or forUser() to manage state.',
+            'RemembersConversations persists and loads message history. Use continue() or forUser() to manage state.',
         file: 'app/Http/Controllers/ConversationController.php',
-        lineRange: '57-71',
+        lineRange: '70-77',
         code: `$agent = new ResearchAgent($user);
 
 if ($conversationId) {
-    // Verify ownership then continue
-    $agent->continue($conversationId, $user);
+    $this->authorizeConversation($conversationId, $user->id);
+    $agent->continue($conversationId, as: $user);
 } else {
-    // Start new conversation
     $agent->forUser($user);
 }
 
 return $agent->stream($message);`,
     },
-    middleware: {
-        label: 'Middleware',
-        description:
-            'RememberConversation middleware auto-saves messages to agent_conversation_messages table.',
-        file: 'app/Agents/ResearchAgent.php',
-        lineRange: '47-54',
-        code: `public function middleware(): array
-{
-    return [
-        RememberConversation::class,
-    ];
-}`,
-    },
     vision: {
         label: 'Vision',
         description:
-            'Multi-modal image analysis. Pass LocalImage attachments for the AI to describe or extract text.',
+            'Multi-modal image analysis by attaching stored images to an agent prompt.',
         file: 'app/Jobs/AnalyzeResearchItem.php',
-        lineRange: '68-77',
+        lineRange: '77-86',
         code: `protected function analyzeImage(): void
 {
-    $summary = Ai::agent()
-        ->prompt(
-            'Describe this image in detail...',
-            attachments: [new LocalImage($absolutePath)]
-        )
-        ->text;
+    $agent = AnalysisAgent::forImage();
+
+    $response = $agent->prompt(
+        'Analyze this image and provide a detailed description.',
+        attachments: [
+            Image::fromStorage($this->item->file_path),
+        ]
+    );
+
+    $summary = $response->text;
 }`,
     },
     broadcasting: {
@@ -186,11 +182,11 @@ return $agent->stream($message);`,
         description:
             'Anonymous agent() with a JSON schema constrains the AI to return a structured category. The enum() method on the schema type accepts a BackedEnum class-string directly.',
         file: 'app/Jobs/AnalyzeResearchItem.php',
-        lineRange: '141-152',
+        lineRange: '214-224',
         code: `protected function categorize(string $content): string
 {
     $response = agent(
-        instructions: 'Categorize the content...',
+        instructions: 'You are a content categorizer. Categorize the following content into the single most appropriate category.',
         schema: fn (JsonSchema $schema) => [
             'category' => $schema->string()
                 ->enum(ResearchCategory::class)->required(),
@@ -227,7 +223,11 @@ export function FeatureBadge({
                     )}
                 >
                     <Info className="size-3" />
-                    {showLabel && <span>{info.prefix ?? 'AI SDK'}: {info.label}</span>}
+                    {showLabel && (
+                        <span>
+                            {info.prefix ?? 'AI SDK'}: {info.label}
+                        </span>
+                    )}
                 </button>
             </TooltipTrigger>
             <TooltipContent
@@ -257,13 +257,18 @@ export function FeatureBadge({
                         <code className="text-primary">{info.code}</code>
                     </pre>
                     <a
-                        href={info.docUrl ?? 'https://laravel.com/docs/12.x/ai-sdk'}
+                        href={
+                            info.docUrl ??
+                            'https://laravel.com/docs/12.x/ai-sdk'
+                        }
                         target="_blank"
                         rel="noopener noreferrer"
                         className="mt-3 inline-flex items-center gap-1 text-xs text-primary hover:underline"
                     >
                         <ExternalLink className="size-3" />
-                        {info.docUrl ? 'Laravel Documentation' : 'AI SDK Documentation'}
+                        {info.docUrl
+                            ? 'Laravel Documentation'
+                            : 'AI SDK Documentation'}
                     </a>
                 </div>
             </TooltipContent>
