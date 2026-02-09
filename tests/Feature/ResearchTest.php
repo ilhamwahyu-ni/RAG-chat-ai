@@ -557,6 +557,26 @@ it('detects bot protection in 200 responses with challenge content', function ()
     expect($item->ai_summary)->toBeNull();
 });
 
+it('marks fetch_failed when extracted content is too short', function () {
+    $user = User::factory()->create(['vector_store_id' => 'vs_test']);
+    $item = ResearchItem::factory()->url()->pending()->for($user)->create([
+        'original_url' => 'https://js-heavy-site.example.com/page',
+    ]);
+
+    Http::fake([
+        'js-heavy-site.example.com/*' => Http::response('<html><head><script>app.init()</script></head><body><noscript>Enable JS</noscript></body></html>', 200),
+    ]);
+
+    Event::fake([ResearchItemAnalyzed::class]);
+
+    (new AnalyzeResearchItem($item))->handle();
+
+    $item->refresh();
+    expect($item->metadata['fetch_failed'])->toBeTrue();
+    expect($item->metadata['fetch_error'])->toContain('no usable text content');
+    expect($item->ai_summary)->toBeNull();
+});
+
 it('marks fetch_failed on connection exceptions', function () {
     $user = User::factory()->create(['vector_store_id' => 'vs_test']);
     $item = ResearchItem::factory()->url()->pending()->for($user)->create([

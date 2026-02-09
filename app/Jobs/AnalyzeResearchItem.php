@@ -144,6 +144,12 @@ class AnalyzeResearchItem implements ShouldQueue
             return;
         }
 
+        if (strlen($content) < 200) {
+            $this->markFetchFailed('The page returned no usable text content (it may require JavaScript to render).');
+
+            return;
+        }
+
         $agent = AnalysisAgent::forUrl();
 
         $response = $agent->prompt(
@@ -257,12 +263,16 @@ class AnalyzeResearchItem implements ShouldQueue
 
     protected function extractTextFromHtml(string $html): string
     {
+        if (! mb_check_encoding($html, 'UTF-8')) {
+            $html = mb_convert_encoding($html, 'UTF-8', 'UTF-8');
+        }
+
         $html = preg_replace('/<script\b[^>]*>(.*?)<\/script>/is', '', $html);
         $html = preg_replace('/<style\b[^>]*>(.*?)<\/style>/is', '', $html);
         $html = preg_replace('/<[^>]+>/', ' ', $html);
-        $html = html_entity_decode($html);
+        $html = html_entity_decode($html, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $html = preg_replace('/\s+/', ' ', $html);
 
-        return trim(substr($html, 0, 15000));
+        return trim(mb_substr($html, 0, 15000, 'UTF-8'));
     }
 }

@@ -11,6 +11,9 @@ export default function AppHeaderLayout({
         <AppShell>
             <AppHeader breadcrumbs={breadcrumbs} />
             <AppContent>{children}</AppContent>
+            <footer className="shrink-0 border-t border-border/50 px-6 py-4 text-center text-xs text-muted-foreground">
+                Built with Laravel & Laravel AI SDK. Deployed on Laravel Cloud.
+            </footer>
         </AppShell>
     );
 }

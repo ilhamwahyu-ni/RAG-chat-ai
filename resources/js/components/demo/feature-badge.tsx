@@ -227,7 +227,7 @@ export function FeatureBadge({
                     )}
                 >
                     <Info className="size-3" />
-                    {showLabel && <span>{info.prefix ?? 'Laravel AI'}: {info.label}</span>}
+                    {showLabel && <span>{info.prefix ?? 'AI SDK'}: {info.label}</span>}
                 </button>
             </TooltipTrigger>
             <TooltipContent
@@ -263,7 +263,7 @@ export function FeatureBadge({
                         className="mt-3 inline-flex items-center gap-1 text-xs text-primary hover:underline"
                     >
                         <ExternalLink className="size-3" />
-                        {info.docUrl ? 'Laravel Documentation' : 'Laravel AI Documentation'}
+                        {info.docUrl ? 'Laravel Documentation' : 'AI SDK Documentation'}
                     </a>
                 </div>
             </TooltipContent>
