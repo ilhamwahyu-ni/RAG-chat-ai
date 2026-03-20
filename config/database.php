@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Str;
+use Pdo\Mysql;
 
 return [
 
@@ -31,6 +32,46 @@ return [
 
     'connections' => [
 
+        'prod_pgsql' => (function () {
+            $u = parse_url(env('PRODUCTION_DB_URL', ''));
+
+            return [
+                'driver' => 'pgsql',
+                'host' => $u['host'] ?? '127.0.0.1',
+                'port' => $u['port'] ?? 5432,
+                'database' => ltrim($u['path'] ?? '', '/'),
+                'username' => urldecode($u['user'] ?? ''),
+                'password' => urldecode($u['pass'] ?? ''),
+                'charset' => 'utf8',
+                'prefix' => '',
+                'prefix_indexes' => true,
+                'search_path' => 'public',
+                'sslmode' => 'require',
+            ];
+        })(),
+
+        'prod_mysql' => (function () {
+            $u = parse_url(env('NEW_PRODUCTION_DB_URL', ''));
+
+            return [
+                'driver' => 'mysql',
+                'host' => $u['host'] ?? '127.0.0.1',
+                'port' => $u['port'] ?? 3306,
+                'database' => ltrim($u['path'] ?? '', '/'),
+                'username' => urldecode($u['user'] ?? ''),
+                'password' => urldecode($u['pass'] ?? ''),
+                'charset' => 'utf8mb4',
+                'collation' => 'utf8mb4_unicode_ci',
+                'prefix' => '',
+                'prefix_indexes' => true,
+                'strict' => true,
+                'engine' => null,
+                'options' => extension_loaded('pdo_mysql') ? array_filter([
+                    (PHP_VERSION_ID >= 80500 ? Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
+                ]) : [],
+            ];
+        })(),
+
         'sqlite' => [
             'driver' => 'sqlite',
             'url' => env('DB_URL'),
@@ -59,7 +100,7 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
-                (PHP_VERSION_ID >= 80500 ? \Pdo\Mysql::ATTR_SSL_CA : \PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
+                (PHP_VERSION_ID >= 80500 ? Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
 
@@ -79,7 +120,7 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
-                (PHP_VERSION_ID >= 80500 ? \Pdo\Mysql::ATTR_SSL_CA : \PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
+                (PHP_VERSION_ID >= 80500 ? Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
 
