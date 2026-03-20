@@ -1,11 +1,11 @@
-name: larryconn
+name: larrykonn
 icon: null
 processes:
-  Serve:
-    command: php artisan serve
+  Pail:
+    command: php artisan pail
     working_dir: null
-    auto_start: true
-    auto_restart: true
+    auto_start: false
+    auto_restart: false
     restart_when_changed: []
     env: {}
   Logs:
@@ -29,24 +29,24 @@ processes:
     auto_restart: true
     restart_when_changed: []
     env: {}
-  Pail:
-    command: php artisan pail
+  Pint:
+    command: vendor/bin/pint --test
     working_dir: null
     auto_start: false
     auto_restart: false
+    restart_when_changed: []
+    env: {}
+  Serve:
+    command: php artisan serve
+    working_dir: null
+    auto_start: true
+    auto_restart: true
     restart_when_changed: []
     env: {}
   'npm: dev':
     command: npm run dev
     working_dir: null
     auto_start: true
-    auto_restart: false
-    restart_when_changed: []
-    env: {}
-  Pint:
-    command: vendor/bin/pint --test
-    working_dir: null
-    auto_start: false
     auto_restart: false
     restart_when_changed: []
     env: {}
