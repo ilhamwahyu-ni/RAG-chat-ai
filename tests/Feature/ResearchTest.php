@@ -4,6 +4,7 @@ use App\Events\ResearchItemAnalyzed;
 use App\Jobs\AnalyzeResearchItem;
 use App\Models\ResearchItem;
 use App\Models\User;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Event;
@@ -584,7 +585,7 @@ it('marks fetch_failed on connection exceptions', function () {
     ]);
 
     Http::fake([
-        'unreachable-site.example.com/*' => fn () => throw new \Illuminate\Http\Client\ConnectionException('Connection timed out'),
+        'unreachable-site.example.com/*' => fn () => throw new ConnectionException('Connection timed out'),
     ]);
 
     Event::fake([ResearchItemAnalyzed::class]);
