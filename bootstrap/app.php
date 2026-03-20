@@ -18,7 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
         // Exclude streaming endpoint from CSRF (token sent via useStream)
-        $middleware->validateCsrfTokens(except: [
+        $middleware->preventRequestForgery(except: [
             'research/chat/stream',
         ]);
 

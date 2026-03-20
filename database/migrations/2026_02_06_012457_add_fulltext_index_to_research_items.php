@@ -16,7 +16,11 @@ return new class extends Migration
         }
 
         Schema::table('research_items', function (Blueprint $table) {
-            $table->fullText(['title', 'ai_summary', 'user_notes'])->language('english');
+            $index = $table->fullText(['title', 'ai_summary', 'user_notes']);
+
+            if (Schema::getConnection()->getDriverName() === 'pgsql') {
+                $index->language('english');
+            }
         });
     }
 
