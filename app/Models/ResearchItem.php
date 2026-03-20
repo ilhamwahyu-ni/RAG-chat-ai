@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Database\Factories\ResearchItemFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -12,7 +13,7 @@ use Illuminate\Support\Facades\Schema;
 
 class ResearchItem extends Model
 {
-    /** @use HasFactory<\Database\Factories\ResearchItemFactory> */
+    /** @use HasFactory<ResearchItemFactory> */
     use HasFactory, HasUuids;
 
     protected $fillable = [

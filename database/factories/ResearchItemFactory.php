@@ -3,11 +3,12 @@
 namespace Database\Factories;
 
 use App\Enums\ResearchCategory;
+use App\Models\ResearchItem;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\ResearchItem>
+ * @extends Factory<ResearchItem>
  */
 class ResearchItemFactory extends Factory
 {
