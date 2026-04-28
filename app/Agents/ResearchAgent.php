@@ -14,7 +14,6 @@ use Laravel\Ai\Providers\Tools\FileSearch;
 use Laravel\Ai\Providers\Tools\WebSearch;
 use Stringable;
 
-#[Provider('openai')]
 #[Temperature(0.7)]
 class ResearchAgent implements Agent, Conversational, HasTools
 {

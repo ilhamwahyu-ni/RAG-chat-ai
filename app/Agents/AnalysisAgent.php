@@ -7,7 +7,6 @@ use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Promptable;
 use Stringable;
 
-#[Provider('openai')]
 class AnalysisAgent implements Agent
 {
     use Promptable;
