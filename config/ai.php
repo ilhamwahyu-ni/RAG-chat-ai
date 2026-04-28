@@ -117,8 +117,17 @@ return [
             'driver' => 'ollama',
             'key' => env('OLLAMA_API_KEY', ''),
             'url' => env('OLLAMA_URL', 'http://localhost:11434'),
-            'model' => env('AI_MODEL', 'gemma4:latest'),
-            'embeddings_model' => env('AI_EMBEDDINGS_MODEL', 'mxbai-embed-large:latest'),
+            'models' => [
+                'text' => [
+                    'default' => env('AI_MODEL', 'gemma4:latest'),
+                    'cheapest' => env('AI_MODEL', 'gemma4:latest'),
+                    'smartest' => env('AI_MODEL', 'gemma4:latest'),
+                ],
+                'embeddings' => [
+                    'default' => env('AI_EMBEDDINGS_MODEL', 'mxbai-embed-large:latest'),
+                    'dimensions' => 1024,
+                ],
+            ],
         ],
 
         'openai' => [
